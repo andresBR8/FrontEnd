@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+::-webkit-scrollbar {
+  width: 0px;
+}
+
+.toggle-checkbox {
+  position: absolute;
+  margin-left: -9999px; /* Oculta el checkbox real */
+  visibility: hidden;
+}
+
+.toggle-label {
+  display: block;
+  position: relative;
+  cursor: pointer;
+  width: 34px; /* Ancho total del switch */
+  height: 14px; /* Altura del switch */
+  background-color: #ccc; /* Color de fondo cuando está desactivado */
+  border-radius: 50px; /* Redondea los bordes */
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #f0ad4e; /* Color emi_amarillo cuando está activado */
+}
+
+.toggle-label:before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px; /* Tamaño de la bolita */
+  height: 12px; /* Tamaño de la bolita */
+  border-radius: 50%; /* Redondea la bolita */
+  background-color: white; /* Color de la bolita */
+  transition: transform 0.2s;
+}
+
+.toggle-checkbox:checked + .toggle-label:before {
+  transform: translateX(20px); /* Mueve la bolita a la derecha cuando está activado */
+  box-shadow: 0 0 2px 0px rgba(0,0,0,0.3); /* Sombra suave para la bolita */
+}
