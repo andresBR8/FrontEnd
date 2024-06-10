@@ -5,6 +5,7 @@ import RegisterActivo from "./RegisterActivos";
 import Modal from 'react-modal';
 import axios from 'axios';
 
+
 Modal.setAppElement('#root');
 
 const customStyles = {
@@ -34,9 +35,12 @@ const Activos = () => {
   const [sortType, setSortType] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
   const [userRole, setUserRole] = useState(null);
+  
+  const apiUrl = import.meta.env.VITE_API_URL;
+
 
   const fetchActivos = () => {
-    axios.get("http://192.168.100.48:5075/api/Activos")
+    axios.get(`${apiUrl}/api/Activos/`)
       .then(response => {
         setActivos(response.data.result);
       })
@@ -52,7 +56,7 @@ const Activos = () => {
 
   const shouldHideMenu = userRole === '3';
   const onSave = (activo) => {
-    const url = `http://192.168.100.48:5075/api/Activos/${activo.id ? activo.id : ''}`;
+    const url = `${apiUrl}/${activo.id ? activo.id : ''}`;
     activo.fechaIngreso = new Date(activo.fechaIngreso).toISOString();
   
     const method = activo.id ? 'put' : 'post';
@@ -62,7 +66,7 @@ const Activos = () => {
         setIsModalOpen(false);
         Swal.fire('¡Éxito!', `El activo ha sido ${activo.id ? 'actualizado' : 'registrado'} con éxito.`, 'success')
           .then(() => {
-            fetchActivos(); // Refrescar la lista de activos después de una actualización o inserción exitosa
+            fetchActivos(); 
           });
       })
       .catch(error => {
@@ -92,7 +96,7 @@ const Activos = () => {
       confirmButtonText: 'Sí, eliminarlo!'
     }).then((result) => {
       if (result.isConfirmed) {
-        axios.delete(`http://192.168.100.48:5075/api/Activos/${id}`)
+        axios.delete(`${apiUrl}/api/Activos/${id}`)
           .then(() => {
             setActivos(activos.filter(a => a.id !== id));
             Swal.fire('Eliminado!', 'El activo ha sido eliminado.', 'success');

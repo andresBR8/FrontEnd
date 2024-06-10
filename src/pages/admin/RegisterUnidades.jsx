@@ -13,6 +13,7 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
     otroCargo: '',
     otraUnidad: ''
   });
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const [cargos, setCargos] = useState([]);
   const [unidadesList, setUnidadesList] = useState([]);
@@ -20,7 +21,7 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
   // Función para cargar cargos y unidades existentes
   const fetchCargosYUnidades = async () => {
     try {
-      const response = await axios.get("http://192.168.100.48:5075/api/Personal");
+      const response = await axios.get(`${apiUrl}/api/Personal`);
       const cargosUnicos = Array.from(new Set(response.data.result.map(item => item.cargo)));
       const unidadesUnicos = Array.from(new Set(response.data.result.map(item => item.unidad)));
       setCargos(cargosUnicos.map(cargo => ({ value: cargo, label: cargo })));

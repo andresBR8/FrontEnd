@@ -23,6 +23,7 @@ const Login = () => {
       console.log(response.data.result);
       const { token } = response.data.result.token;
       if (token !== null) {
+        localStorage.setItem("userId", response.data.result.user.id);
         localStorage.setItem("token", token);
         localStorage.setItem("nombre", response.data.result.user.nombre);
         localStorage.setItem("apellido", response.data.result.user.apellido);

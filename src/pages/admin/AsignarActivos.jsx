@@ -5,7 +5,7 @@ import { PDFViewer } from '@react-pdf/renderer';
 import CustodyDocument from './PDF'; 
 import axios from 'axios';
 
-const AsignarActivos = () => {
+const AsignarActivos = ({ onClose, onSave }) => {
   const [personal, setPersonal] = useState([]);
   const [activos, setActivos] = useState([]);
   const [selectedPersonal, setSelectedPersonal] = useState(null);
@@ -13,16 +13,17 @@ const AsignarActivos = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showPDF, setShowPDF] = useState(false);
 
+  const apiUrl = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
-    axios.get("http://192.168.100.48:5075/api/Personal")
+    axios.get(`${apiUrl}/api/Personal`)
       .then(response => setPersonal(response.data.result))
       .catch(error => console.error('Error fetching personal:', error));
 
-    axios.get("http://192.168.100.48:5075/api/Activos")
+    axios.get(`${apiUrl}/api/Activos`)
       .then(response => {
         const activosNoAsignados = response.data.result.filter(activo => !activo.asignado);
         setActivos(activosNoAsignados);
-        console.log(activosNoAsignados);
       })
       .catch(error => console.error('Error fetching activos:', error));
   }, []);
@@ -40,28 +41,67 @@ const AsignarActivos = () => {
     })));
   };
 
-  const handleAsignarActivos = (e) => {
+  const handleAsignarActivos = async (e) => {
     e.preventDefault();
     const selectedActivos = activos.filter(a => a.seleccionado);
+    const fk_Usuario = localStorage.getItem('userId'); 
+
+    if (!selectedPersonal || selectedActivos.length === 0) {
+      Swal.fire('Error', 'Por favor seleccione un personal y al menos un activo', 'error');
+      return;
+    }
+
+    try {
+      for (const activo of selectedActivos) {
+        const data = {
+          fechaAsignacion: new Date().toISOString(),
+          fk_Activo: activo.id,
+          fk_Usuario,
+          fk_Personal: selectedPersonal.id
+        };
+        await axios.post(`${apiUrl}/api/Asignaciones`, data);
+        
+        // Update the 'asignado' status of the asset
+        await axios.put(`${apiUrl}/api/Activos/${activo.id}`, {
+          ...activo,
+          asignado: true
+        });
+      }
+      Swal.fire('¡Éxito!', 'Los activos han sido asignados con éxito.', 'success');
+      onClose();
+      onSave(); // Refrescar la lista de asignaciones
+    } catch (error) {
+      Swal.fire('Error', 'No se pudo asignar los activos.', 'error');
+    }
+
     setShowPDF(true);
   };
 
   return (
     <div className="flex flex-wrap justify-center p-4">
-      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl m-4" style={{ maxWidth: '450px' }}>
-        <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-          Asignar <span className="text-primary">Activos</span>
+      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl m-4" style={{ maxWidth: '600px' }}>
+        <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-emi_amarillo mb-8">
+          Asignar <span className="text-emi_azul">Activos</span>
         </h1>
         <form className="mb-8" onSubmit={handleAsignarActivos}>
           <div className="relative mb-4">
             <RiUserLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input type="text" className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
-              placeholder="Buscar personal..." value={filtroPersonal} onChange={e => setFiltroPersonal(e.target.value)} onFocus={() => setShowDropdown(true)} />
+            <input 
+              type="text" 
+              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
+              placeholder="Buscar personal..." 
+              value={filtroPersonal} 
+              onChange={e => setFiltroPersonal(e.target.value)} 
+              onFocus={() => setShowDropdown(true)} 
+            />
             {showDropdown && (
-              <div className="absolute w-full mt-1 z-10 bg-white shadow-md max-h-60 overflow-auto ">
+              <div className="absolute w-full mt-1 z-10 bg-white shadow-md max-h-60 overflow-auto rounded-lg">
                 {personal.filter(p => p.nombre.toLowerCase().includes(filtroPersonal.toLowerCase())).map(p => (
-                  <div key={p.id} className="text-emi_azul p-2 cursor-pointer hover:bg-gray-200"
-                    onClick={() => handleSeleccionPersonal(p)}>
+                  <div 
+                    key={p.id} 
+                    className="text-emi_azul p-2 cursor-pointer hover:bg-gray-200"
+                    onClick={() => handleSeleccionPersonal(p)}
+                  >
                     {p.nombre}
                   </div>
                 ))}
@@ -70,25 +110,42 @@ const AsignarActivos = () => {
           </div>
           <div className="relative mb-4">
             <RiBriefcaseLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input type="text" readOnly className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul" value={selectedPersonal?.cargo} placeholder="Cargo" />
+            <input 
+              type="text" 
+              readOnly 
+              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul" 
+              value={selectedPersonal?.cargo} 
+              placeholder="Cargo" 
+            />
           </div>
           <div className="relative mb-4">
             <RiBuildingLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input type="text" readOnly className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul" value={selectedPersonal?.unidad} placeholder="Unidad" />
+            <input 
+              type="text" 
+              readOnly 
+              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul" 
+              value={selectedPersonal?.unidad} 
+              placeholder="Unidad" 
+            />
           </div>
-          {activos.map((activo) => (
-            <div key={activo.id} className="flex items-center mb-2 bg-secondary-900 p-2 rounded-lg">
-              <div className="flex items-center justify-center w-8 h-8 mr-2">
-                {activo.seleccionado ? (
-                  <RiCheckboxLine className="text-primary cursor-pointer" onClick={() => toggleSeleccion(activo.id)} />
-                ) : (
-                  <RiCheckboxBlankLine className="text-primary cursor-pointer" onClick={() => toggleSeleccion(activo.id)} />
-                )}
-              </div>
-              <div className="text-emi_azul">{`${activo.id} - ${activo.detalle}`}</div>
+          <div className="mb-4">
+            <h3 className="text-lg text-emi_azul font-bold mb-2">Seleccionar Activos</h3>
+            <div className="max-h-60 overflow-auto">
+              {activos.map((activo) => (
+                <div key={activo.id} className="flex items-center mb-2 bg-white p-2 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-center w-8 h-8 mr-2">
+                    {activo.seleccionado ? (
+                      <RiCheckboxLine className="text-primary cursor-pointer" onClick={() => toggleSeleccion(activo.id)} />
+                    ) : (
+                      <RiCheckboxBlankLine className="text-primary cursor-pointer" onClick={() => toggleSeleccion(activo.id)} />
+                    )}
+                  </div>
+                  <div className="text-emi_azul">{`${activo.id} - ${activo.detalle}`}</div>
+                </div>
+              ))}
             </div>
-          ))}
-          <button type="submit" className="bg-primary text-black uppercase font-bold text-sm w-full py-3 px-4 rounded-lg">
+          </div>
+          <button type="submit" className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors">
             Asignar Activos
           </button>
         </form>

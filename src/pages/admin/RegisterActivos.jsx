@@ -16,10 +16,11 @@ const RegisterActivos = ({ activo: initialActivo, onClose, onSave }) => {
     estado: '',
     asignado: false,
   });
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   // Cargar partidas y establecer datos del activo inicial
   useEffect(() => {
-    axios.get("http://192.168.100.48:5075/api/Partidas")
+    axios.get(`${apiUrl}/api/Partidas`)
       .then(response => {
         setPartidas(response.data.result);
         if (initialActivo) {

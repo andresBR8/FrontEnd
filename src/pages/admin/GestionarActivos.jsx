@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import Swal from 'sweetalert2';
 import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
 import Modal from 'react-modal';
-import Select from 'react-select';
-import CreatableSelect from 'react-select';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import AsignarActivos from './AsignarActivos';
+import axios from 'axios';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -23,16 +23,19 @@ const customStyles = {
     borderRadius: '50px',
     padding: '2px',
     width: '90%',
-    maxWidth: '900px'
+    maxWidth: '1000px'
   },
   overlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.75)'
   }
 };
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 const AssetManagement = () => {
   const [assignments, setAssignments] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAsignarModalOpen, setIsAsignarModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [unidades, setUnidades] = useState([]);
@@ -47,7 +50,7 @@ const AssetManagement = () => {
   }, []);
 
   const fetchAssignments = () => {
-    axios.get("http://192.168.100.48:5075/api/Asignaciones")
+    axios.get(`${apiUrl}/api/Asignaciones`)
       .then(response => {
         setAssignments(response.data.result);
       })
@@ -55,7 +58,7 @@ const AssetManagement = () => {
   };
 
   const fetchUnidades = () => {
-    axios.get("http://192.168.100.48:5075/api/Unidades")
+    axios.get(`${apiUrl}/api/Unidades`)
       .then(response => {
         const unidadesData = response.data.result.map(unidad => ({ value: unidad.id, label: unidad.nombre }));
         setUnidades(unidadesData);
@@ -64,7 +67,7 @@ const AssetManagement = () => {
   };
 
   const fetchUsuarios = () => {
-    axios.get("http://192.168.100.48:5075/api/Usuarios")
+    axios.get(`${apiUrl}/api/Usuarios`)
       .then(response => {
         const usuariosData = response.data.result.map(usuario => ({ value: usuario.id, label: usuario.nombre }));
         setUsuarios(usuariosData);
@@ -73,26 +76,28 @@ const AssetManagement = () => {
   };
 
   const fetchActivos = () => {
-    axios.get("http://192.168.100.48:5075/api/Activos")
+    axios.get(`${apiUrl}/api/Activos`)
       .then(response => {
-        const activosData = response.data.result.map(activo => ({ value: activo.id, label: activo.nombre }));
+        const activosData = response.data.result.map(activo => ({ value: activo.id, label: activo.detalle }));
         setActivos(activosData);
       })
       .catch(error => console.error('Error fetching data:', error));
   };
 
   const handleEdit = (assignment) => {
-    setSelectedAssignment(assignment);
+    if (!assignment) return;
+    setSelectedAssignment({
+      id: assignment.id,
+      fechaAsignacion: assignment.fechaAsignacion,
+      fk_Activo: assignment.activo.id,
+      fk_Usuario: assignment.user.id,
+      fk_Personal: assignment.personal.id
+    });
     setIsModalOpen(true);
   };
 
   const handleAdd = () => {
-    setSelectedAssignment({
-      usuarioId: '',
-      personalId: '',
-      activoId: ''
-    });
-    setIsModalOpen(true);
+    setIsAsignarModalOpen(true);
   };
 
   const handleDelete = (id) => {
@@ -106,7 +111,7 @@ const AssetManagement = () => {
       confirmButtonText: 'Sí, eliminarlo!'
     }).then((result) => {
       if (result.isConfirmed) {
-        axios.delete(`http://192.168.100.48:5075/api/Asignaciones/${id}`)
+        axios.delete(`${apiUrl}/api/Asignaciones/${id}`)
           .then(() => {
             Swal.fire('Eliminado!', 'La asignación ha sido eliminada.', 'success');
             fetchAssignments();
@@ -124,44 +129,18 @@ const AssetManagement = () => {
 
   const filteredAssignments = assignments.filter(assignment =>
     assignment.personal.nombre.toLowerCase().includes(searchTerm) ||
-    assignment.usuario.nombre.toLowerCase().includes(searchTerm) ||
-    assignment.activo.nombre.toLowerCase().includes(searchTerm) ||
-    assignment.personal.unidad.nombre.toLowerCase().includes(searchTerm)
+    assignment.user.nombre.toLowerCase().includes(searchTerm) ||
+    assignment.activo.detalle.toLowerCase().includes(searchTerm) ||
+    assignment.personal.unidad.toLowerCase().includes(searchTerm)
   );
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const method = selectedAssignment.id ? 'put' : 'post';
-    const url = `http://192.168.100.48:5075/api/Asignaciones/${selectedAssignment.id ? selectedAssignment.id : ''}`;
-    axios({ method, url, data: selectedAssignment })
-      .then(() => {
-        setIsModalOpen(false);
-        fetchAssignments(); // Refresca la lista después de guardar
-        Swal.fire('¡Éxito!', `La asignación ha sido ${selectedAssignment.id ? 'actualizada' : 'registrada'} con éxito.`, 'success');
-      })
-      .catch(error => {
-        Swal.fire('Error', `No se pudo ${selectedAssignment.id ? 'actualizar' : 'registrar'} la asignación.`, 'error');
-      });
-  };
-
-  const handleSelectChange = (selectedOption, actionMeta) => {
-    const { name } = actionMeta;
-    setSelectedAssignment(prevState => ({
-      ...prevState,
-      [name]: selectedOption ? selectedOption.value : ''
-    }));
-  };
-
-  // Datos del gráfico de barras para asignaciones por unidad
   const barChartData = {
-    labels: [...new Set(assignments.map(assignment => assignment.personal.unidad.nombre))],
+    labels: [...new Set(assignments.map(assignment => assignment.personal.unidad))],
     datasets: [{
       label: 'Asignaciones por Unidad',
-      data: assignments.reduce((acc, assignment) => {
-        const unidad = assignment.personal.unidad.nombre;
-        acc[unidad] = (acc[unidad] || 0) + 1;
-        return acc;
-      }, {}),
+      data: [...new Set(assignments.map(assignment => assignment.personal.unidad))].map(unidad => (
+        assignments.filter(assignment => assignment.personal.unidad === unidad).length
+      )),
       backgroundColor: 'rgba(75, 192, 192, 0.6)',
       borderColor: 'rgba(75, 192, 192, 1)',
       borderWidth: 1
@@ -177,16 +156,13 @@ const AssetManagement = () => {
     }
   };
 
-  // Datos del gráfico circular para distribución de activos
   const pieChartData = {
-    labels: [...new Set(assignments.map(assignment => assignment.activo.nombre))],
+    labels: [...new Set(assignments.map(assignment => assignment.activo.detalle))],
     datasets: [{
       label: 'Distribución de Activos',
-      data: assignments.reduce((acc, assignment) => {
-        const activo = assignment.activo.nombre;
-        acc[activo] = (acc[activo] || 0) + 1;
-        return acc;
-      }, {}),
+      data: [...new Set(assignments.map(assignment => assignment.activo.detalle))].map(activo => (
+        assignments.filter(assignment => assignment.activo.detalle === activo).length
+      )),
       backgroundColor: [
         'rgba(255, 99, 132, 0.6)',
         'rgba(54, 162, 235, 0.6)',
@@ -225,63 +201,15 @@ const AssetManagement = () => {
       <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-10">
         <div>
           <h2 className="text-lg text-emi_azul font-bold mb-4">Asignaciones por Unidad</h2>
-          <Bar data={barChartData} options={barChartOptions} />
+          {barChartData && <Bar data={barChartData} options={barChartOptions} />}
         </div>
         <div>
           <h2 className="text-lg text-emi_azul font-bold mb-4">Distribución de Activos</h2>
-          <Pie data={pieChartData} />
+          {pieChartData && <Pie data={pieChartData} />}
         </div>
       </div>
-      <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} style={customStyles}>
-        <div className="p-4">
-          <h2 className="text-2xl text-center mb-4">{selectedAssignment.id ? 'Editar' : 'Registrar'} Asignación</h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6">
-            <label className="flex flex-col">
-              Usuario:
-              <Select
-                name="usuarioId"
-                value={usuarios.find(option => option.value === selectedAssignment.usuarioId)}
-                onChange={handleSelectChange}
-                options={usuarios}
-                placeholder="Seleccionar usuario"
-                className="basic-single"
-                classNamePrefix="select"
-              />
-            </label>
-            <label className="flex flex-col">
-              Personal:
-              <Select
-                name="personalId"
-                value={unidades.find(option => option.value === selectedAssignment.personalId)}
-                onChange={handleSelectChange}
-                options={unidades}
-                placeholder="Seleccionar personal"
-                className="basic-single"
-                classNamePrefix="select"
-              />
-            </label>
-            <label className="flex flex-col">
-              Activo:
-              <CreatableSelect
-                name="activoId"
-                value={activos.find(option => option.value === selectedAssignment.activoId) || { value: selectedAssignment.activoId, label: selectedAssignment.activoId }}
-                onChange={handleSelectChange}
-                options={activos}
-                placeholder="Seleccionar o escribir activo"
-                className="basic-single"
-                classNamePrefix="select"
-              />
-            </label>
-            <div className="col-span-1">
-              <button
-                type="submit"
-                className="bg-primary text-black uppercase font-bold text-sm w-full py-3 px-4 rounded-lg"
-              >
-                {selectedAssignment.id ? 'Actualizar' : 'Registrar'} Asignación
-              </button>
-            </div>
-          </form>
-        </div>
+      <Modal isOpen={isAsignarModalOpen} onRequestClose={() => setIsAsignarModalOpen(false)} style={customStyles}>
+        <AsignarActivos onClose={() => setIsAsignarModalOpen(false)} onSave={fetchAssignments} />
       </Modal>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-emi_azul">
@@ -299,10 +227,10 @@ const AssetManagement = () => {
             {filteredAssignments.map((assignment) => (
               <tr key={assignment.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
                 <td className="py-1 px-6">{assignment.id}</td>
-                <td className="py-1 px-6">{assignment.usuario.nombre}</td>
+                <td className="py-1 px-6">{assignment.user.nombre}</td>
                 <td className="py-1 px-6">{assignment.personal.nombre}</td>
-                <td className="py-1 px-6">{assignment.activo.nombre}</td>
-                <td className="py-1 px-6">{assignment.personal.unidad.nombre}</td>
+                <td className="py-1 px-6">{assignment.activo.detalle}</td>
+                <td className="py-1 px-6">{assignment.personal.unidad}</td>
                 <td className="py-1 px-6 text-right space-x-7">
                   <button onClick={() => handleEdit(assignment)} className="font-medium text-emi_amarillo dark:text-black hover:underline">
                     <RiEdit2Line size="1.5em" />

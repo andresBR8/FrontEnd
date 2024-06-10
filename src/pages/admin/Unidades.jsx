@@ -31,13 +31,14 @@ const Unidades = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUnidad, setSelectedUnidad] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     fetchUnidades();
   }, []);
 
   const fetchUnidades = () => {
-    axios.get("http://192.168.100.48:5075/api/Personal")
+    axios.get(`${apiUrl}/api/Personal`)
       .then(response => {
         setUnidades(response.data.result);
       })
@@ -70,7 +71,7 @@ const Unidades = () => {
       confirmButtonText: 'Sí, eliminarlo!'
     }).then((result) => {
       if (result.isConfirmed) {
-        axios.delete(`http://192.168.100.48:5075/api/Personal/${id}`)
+        axios.delete(`${apiUrl}/api/Personal/${id}`)
           .then(() => {
             Swal.fire('Eliminado!', 'La unidad ha sido eliminada.', 'success');
             fetchUnidades();
@@ -109,7 +110,7 @@ const Unidades = () => {
       <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} style={customStyles}>
         <RegisterUnidades unidad={selectedUnidad} onClose={() => setIsModalOpen(false)} onSave={(data) => {
           const method = data.id ? 'put' : 'post';
-          const url = `http://192.168.100.48:5075/api/Personal/${data.id ? data.id : ''}`;
+          const url = `${apiUrl}/api/Personal/${data.id ? data.id : ''}`;
           axios({ method, url, data })
             .then(() => {
               setIsModalOpen(false);
