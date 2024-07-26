@@ -12,10 +12,10 @@ import Register from "./pages/auth/Register";
 import ForgetPassword from "./pages/auth/ForgetPassword";
 // Pages admin
 import Home from "./pages/admin/Home";
-import Profile from "./pages/admin/Profile";
+
 import Chat from "./pages/admin/Chat";
 import Error404 from "./pages/Error404";
-import Tickets from "./pages/admin/Tickets";
+
 import Activos from "./pages/admin/Activos";
 import Unidades from "./pages/admin/Unidades";
 import RegisterUser from "./pages/admin/RegisterUser";
@@ -75,9 +75,9 @@ function App() {
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<LayoutAdmin />}>
             <Route index element={<Home />} />
-            <Route path="perfil" element={<Profile />} />
+            
             <Route path="chat" element={<Chat />} />
-            <Route path="tickets" element={<Tickets />} />
+            
             <Route path="activos" element={<Activos />} />
             <Route path="unidades" element={<Unidades />} />
             <Route path="registrouser" element={<RegisterUser />} />
