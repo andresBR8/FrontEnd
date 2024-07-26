@@ -8,6 +8,7 @@ const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
@@ -31,7 +32,7 @@ const ResetPassword = () => {
       return;
     }
     try {
-      const response = await fetch('http://192.168.100.48:5075/api/Users/reset-password', {
+      const response = await fetch(`${apiUrl}/api/Users/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

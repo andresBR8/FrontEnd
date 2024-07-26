@@ -4,6 +4,7 @@ import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
 import RegisterUnidades from "./RegisterUnidades";
 import Modal from 'react-modal';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 
 Modal.setAppElement('#root');
 
@@ -15,7 +16,7 @@ const customStyles = {
     bottom: 'auto',
     marginRight: '-50%',
     transform: 'translate(-35%, -50%)',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
     borderRadius: '50px',
     padding: '2px',
     width: '90%',
@@ -26,24 +27,39 @@ const customStyles = {
   }
 };
 
-const Unidades = () => {
+const Personal = () => {
   const [unidades, setUnidades] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUnidad, setSelectedUnidad] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const apiUrl = import.meta.env.VITE_API_URL;
 
+  const fetchUnidades = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/personal`);
+      setUnidades(response.data.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
   useEffect(() => {
     fetchUnidades();
-  }, []);
 
-  const fetchUnidades = () => {
-    axios.get(`${apiUrl}/api/Personal`)
-      .then(response => {
-        setUnidades(response.data.result);
-      })
-      .catch(error => console.error('Error fetching data:', error));
-  };
+    const socket = io(apiUrl, {
+      withCredentials: true,
+    });
+
+    socket.emit('setRole', localStorage.getItem('role')); // Asigna el rol del usuario
+
+    socket.on('personal-changed', () => {
+      fetchUnidades();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [apiUrl]);
 
   const handleEdit = (unidad) => {
     setSelectedUnidad(unidad);
@@ -52,10 +68,11 @@ const Unidades = () => {
 
   const handleAdd = () => {
     setSelectedUnidad({
-      codigoPartida: "",
-      nombre: "",
-      vidaUtil: 0,
-      porcentajeDepreciacion: 0
+      id: '',
+      ci: '',
+      nombre: '',
+      fkCargo: '',
+      fkUnidad: ''
     });
     setIsModalOpen(true);
   };
@@ -71,13 +88,13 @@ const Unidades = () => {
       confirmButtonText: 'Sí, eliminarlo!'
     }).then((result) => {
       if (result.isConfirmed) {
-        axios.delete(`${apiUrl}/api/Personal/${id}`)
+        axios.delete(`${apiUrl}/personal/${id}`)
           .then(() => {
-            Swal.fire('Eliminado!', 'La unidad ha sido eliminada.', 'success');
+            Swal.fire('Eliminado!', 'El personal ha sido eliminado.', 'success');
             fetchUnidades();
           })
           .catch(error => {
-            Swal.fire('Error!', 'No se pudo eliminar la unidad.', 'error');
+            Swal.fire('Error!', 'No se pudo eliminar el personal.', 'error');
           });
       }
     });
@@ -95,7 +112,7 @@ const Unidades = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-10">
-        <h1 className="text-2xl text-emi_azul font-bold">Gestión de Unidades</h1>
+        <h1 className="text-2xl text-emi_azul font-bold">Gestión de Personal</h1>
         <input 
           type="text" 
           placeholder="Buscar personal..." 
@@ -104,21 +121,28 @@ const Unidades = () => {
           className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
         />
         <button onClick={handleAdd} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
-          Agregar Unidades
+          Agregar Personal
         </button>
       </div>
       <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} style={customStyles}>
         <RegisterUnidades unidad={selectedUnidad} onClose={() => setIsModalOpen(false)} onSave={(data) => {
-          const method = data.id ? 'put' : 'post';
-          const url = `${apiUrl}/api/Personal/${data.id ? data.id : ''}`;
-          axios({ method, url, data })
+          const method = data.id ? 'patch' : 'post';
+          const url = `${apiUrl}/personal/${data.id ? data.id : ''}`;
+          const payload = {
+            ci: data.ci,
+            nombre: data.nombre,
+            fkCargo: data.fkCargo,
+            fkUnidad: data.fkUnidad
+          };
+          axios({ method, url, data: payload })
             .then(() => {
               setIsModalOpen(false);
               fetchUnidades(); // Refresca la lista después de guardar
-              Swal.fire('¡Éxito!', `La unidad ha sido ${data.id ? 'actualizada' : 'registrada'} con éxito.`, 'success');
+              Swal.fire('¡Éxito!', `El personal ha sido ${data.id ? 'actualizado' : 'registrado'} con éxito.`, 'success');
             })
             .catch(error => {
-              Swal.fire('Error', `No se pudo ${data.id ? 'actualizar' : 'registrar'} la unidad.`, 'error');
+              console.log('Error saving personal:', error);
+              Swal.fire('Error', error.message || 'Ocurrió un error al guardar el personal.', 'error');
             });
         }} />
       </Modal>
@@ -140,8 +164,8 @@ const Unidades = () => {
                 <td className="py-1 px-6">{unidad.id}</td>
                 <td className="py-1 px-6">{unidad.ci}</td>
                 <td className="py-1 px-6">{unidad.nombre}</td>
-                <td className="py-1 px-6">{unidad.cargo}</td>
-                <td className="py-1 px-6">{unidad.unidad}</td>
+                <td className="py-1 px-6">{unidad.cargo.nombre}</td>
+                <td className="py-1 px-6">{unidad.unidad.nombre}</td>
                 <td className="py-1 px-6 text-right space-x-7">
                   <button onClick={() => handleEdit(unidad)} className="font-medium text-emi_amarillo dark:text-black hover:underline">
                     <RiEdit2Line size="1.5em" />
@@ -159,4 +183,4 @@ const Unidades = () => {
   );
 };
 
-export default Unidades;
+export default Personal;

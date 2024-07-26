@@ -1,39 +1,42 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import {RiCloseLine } from "react-icons/ri";
+import { RiCloseLine } from 'react-icons/ri';
+import moment from 'moment-timezone';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-const RegisterActivos = ({ activo: initialActivo, onClose, onSave }) => {
-  const todayDate = new Date().toISOString();
+const RegisterActivos = ({ onClose, onSave }) => {
+  const todayDate = moment().tz('America/La_Paz').format('YYYY-MM-DD');
   const [partidas, setPartidas] = useState([]);
-
-  // Estado inicial que se actualizará con datos de partidas y el activo para editar
   const [activo, setActivo] = useState({
-    id: '',
-    fk_Partida: '',
-    detalle: '',
+    fkPartida: '',
+    nombre: '',
+    descripcion: '',
     fechaIngreso: todayDate,
     costo: '',
     estado: '',
-    asignado: false,
+    codigoNuevo: '',
+    ordenCompra: '',
+    createdBy: localStorage.getItem('role'),
+    cantidad: 1,
   });
+  const [activosList, setActivosList] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
+
   const apiUrl = import.meta.env.VITE_API_URL;
 
-  // Cargar partidas y establecer datos del activo inicial
   useEffect(() => {
-    axios.get(`${apiUrl}/api/Partidas`)
+    axios.get(`${apiUrl}/partida`)
       .then(response => {
-        setPartidas(response.data.result);
-        if (initialActivo) {
-          setActivo({
-            ...initialActivo,
-            fechaIngreso: initialActivo.fechaIngreso ? initialActivo.fechaIngreso.split('T')[0] : todayDate,
-          });
-        }
+        setPartidas(response.data.data);
       })
       .catch(error => console.error('Error fetching partidas:', error));
-  }, [initialActivo]);
+  }, []);
 
-  // Manejo de cambios en los campos del formulario
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setActivo(prevState => ({
@@ -42,20 +45,151 @@ const RegisterActivos = ({ activo: initialActivo, onClose, onSave }) => {
     }));
   };
 
-  // Manejo de la acción de envío del formulario
-  const handleSubmit = (e) => {
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setSelectedFile(file);
+    setFilePreview(URL.createObjectURL(file));
+  };
+
+  const handleDrop = (e) => {
     e.preventDefault();
-    onSave({
+    const file = e.dataTransfer.files[0];
+    setSelectedFile(file);
+    setFilePreview(URL.createObjectURL(file));
+    setDragOver(false);
+  };
+
+  const handleRemoveFile = () => {
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview);
+    }
+    setSelectedFile(null);
+    setFilePreview(null);
+  };
+
+  const handleUpload = () => {
+    if (!selectedFile) {
+      toast.error('Por favor selecciona un archivo antes de subirlo.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    setIsUploading(true);
+
+    axios.post(`${apiUrl}/upload`, formData)
+      .then((response) => {
+        toast.success('Archivo subido exitosamente');
+        setActivo(prevState => ({
+          ...prevState,
+          ordenCompra: response.data.url
+        }));
+        setIsFileUploaded(true);
+        setSelectedFile(null);
+        setFilePreview(response.data.url);
+      })
+      .catch((error) => {
+        console.error('Error al subir el archivo:', error);
+        toast.error(error.response?.data?.message || 'Ocurrió un error al subir el archivo.');
+      })
+      .finally(() => {
+        setIsUploading(false);
+      });
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleAddActivo = () => {
+    if (
+      !activo.fkPartida ||
+      !activo.nombre ||
+      !activo.descripcion ||
+      !activo.fechaIngreso ||
+      !activo.costo ||
+      !activo.estado ||
+      !activo.codigoNuevo ||
+      !activo.cantidad ||
+      activo.cantidad < 1
+    ) {
+      toast.error('Por favor complete todos los campos obligatorios.');
+      return;
+    }
+
+    setActivosList([...activosList, {
       ...activo,
-      fechaIngreso: new Date(activo.fechaIngreso).toISOString() // Asegura que la fecha está en formato correcto
+      costo: parseFloat(activo.costo),
+      cantidad: parseInt(activo.cantidad, 10),
+      fechaIngreso: moment(activo.fechaIngreso).tz('America/La_Paz').toISOString()
+    }]);
+    setActivo({
+      fkPartida: '',
+      nombre: '',
+      descripcion: '',
+      fechaIngreso: todayDate,
+      costo: '',
+      estado: '',
+      codigoNuevo: '',
+      ordenCompra: activo.ordenCompra,
+      createdBy: localStorage.getItem('role'),
+      cantidad: 1,
     });
-    onClose(); // Cierra el formulario al guardar
+    setIsFileUploaded(false);
+  };
+
+  const handleEditActivo = (index) => {
+    const activoToEdit = activosList[index];
+    setActivo({
+      ...activoToEdit,
+      fechaIngreso: moment(activoToEdit.fechaIngreso).format('YYYY-MM-DD')
+    });
+    setActivosList(activosList.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveActivo = (index) => {
+    setActivosList(activosList.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (activosList.length === 0) {
+      toast.error('No hay activos para registrar.');
+      return;
+    }
+    console.log('Activos a registrar:', activosList);
+
+    for (const activo of activosList) {
+      try {
+        await axios.post(`${apiUrl}/activo-modelo`, activo);
+        console.log('Activo registrado:', activo);
+        toast.success('Activo registrado exitosamente');
+      } catch (error) {
+        console.error('Error al registrar el activo:', error);
+        console.log(error.response);
+        toast.error('Ocurrió un error al registrar el activo.');
+      }
+    }
+    onSave();
+    onClose();
   };
 
   return (
     <div className="flex items-center justify-center p-4">
-      <div className="relative bg-secondary-100 p-8 rounded-3xl shadow-2xl w-[800px] lg:w-[1000px]">
-      <button
+      <div className="relative bg-secondary-100 p-7 rounded-3xl shadow-3xl w-[90%] max-w-4xl">
+        <button
           onClick={onClose}
           className="absolute top-0 right-0 text-2xl p-2 text-primary hover:text-white"
           aria-label="Cerrar"
@@ -63,103 +197,189 @@ const RegisterActivos = ({ activo: initialActivo, onClose, onSave }) => {
           <RiCloseLine />
         </button>
         <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-          {activo.id ? 'Editar' : 'Registrar'} <span className="text-primary">Activo</span>
+          Registrar <span className="text-primary">Activo</span>
         </h1>
-        <form className="grid grid-cols-2 gap-6" onSubmit={handleSubmit}>
-          <label className="flex flex-col text-white">
-            ID:
-            <input
-              type="text"
-              name="id"
-              value={activo.id}
-              readOnly
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
-            />
-          </label>
-          <label className="flex flex-col text-white">
-            Partida:
-            <select
-              name="fk_Partida"
-              value={activo.fk_Partida}
-              onChange={handleInputChange}
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
-            >
-              <option value="">Seleccione una partida</option>
-              {partidas.map((partida) => (
-                <option key={partida.id} value={partida.id}>{partida.nombre}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col text-white">
-            Descripción:
-            <input
-              type="text"
-              name="detalle"
-              value={activo.detalle}
-              onChange={handleInputChange}
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
-            />
-          </label>
-          <label className="flex flex-col text-white">
-            Fecha de Ingreso:
-            <input
-              type="date"
-              name="fechaIngreso"
-              value={activo.fechaIngreso}
-              onChange={handleInputChange}
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
-            />
-          </label>
-          <label className="flex flex-col text-white">
-            Valor/Costo:
-            <input
-              type="number"
-              name="costo"
-              value={activo.costo}
-              onChange={handleInputChange}
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
-            />
-          </label>
-          <label className="flex flex-col text-white">
-            Estado:
-            <select
-              name="estado"
-              value={activo.estado}
-              onChange={handleInputChange}
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
-            >
-              <option value="">Seleccione el estado</option>
-              <option value="Nuevo">Nuevo</option>
-              <option value="Regular">Regular</option>
-              <option value="Malo">Malo</option>
-            </select>
-          </label>
-          {activo.id && (
-            <label className="flex flex-col text-white col-span-2">
-              Asignado:
-              <div className="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
-                <input
-                  type="checkbox"
-                  name="asignado"
-                  id="toggle"
-                  checked={activo.asignado}
-                  onChange={handleInputChange}
-                  className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                />
-                <label htmlFor="toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
-              </div>
+        <form className="grid grid-cols-3 gap-6" onSubmit={handleSubmit}>
+          <div className="col-span-1">
+            <label className="flex flex-col text-white">
+              Partida:
+              <select
+                name="fkPartida"
+                value={activo.fkPartida}
+                onChange={(e) => setActivo(prevState => ({
+                  ...prevState,
+                  fkPartida: parseInt(e.target.value, 10)
+                }))}
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              >
+                <option value="">Seleccione una partida</option>
+                {partidas.map((partida) => (
+                  <option key={partida.id} value={partida.id}>{partida.nombre}</option>
+                ))}
+              </select>
             </label>
-          )}
-          <div className="col-span-2">
-            <button
-              type="submit"
-              className="bg-primary text-black uppercase font-bold text-sm w-full py-3 px-4 rounded-lg"
-            >
-              {activo.id ? 'Actualizar' : 'Registrar'} Activo
-            </button>
+            <label className="flex flex-col text-white">
+              Nombre:
+              <input
+                type="text"
+                name="nombre"
+                value={activo.nombre}
+                onChange={handleInputChange}
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              />
+            </label>
+            <label className="flex flex-col text-white">
+              Descripción:
+              <input
+                type="text"
+                name="descripcion"
+                value={activo.descripcion}
+                onChange={handleInputChange}
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              />
+            </label>
+            <label className="flex flex-col text-white">
+              Fecha de Ingreso:
+              <input
+                type="date"
+                name="fechaIngreso"
+                value={activo.fechaIngreso}
+                onChange={handleInputChange}
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              />
+            </label>
+            <label className="flex flex-col text-white">
+              Cantidad:
+              <input
+                type="number"
+                name="cantidad"
+                value={activo.cantidad}
+                onChange={handleInputChange}
+                min="1"
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              />
+            </label>
           </div>
+          <div className="col-span-1">
+            <label className="flex flex-col text-white">
+              Valor/Costo:
+              <input
+                type="number"
+                name="costo"
+                value={activo.costo}
+                onChange={handleInputChange}
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              />
+            </label>
+            <label className="flex flex-col text-white">
+              Estado:
+              <select
+                name="estado"
+                value={activo.estado}
+                onChange={handleInputChange}
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              >
+                <option value="">Seleccione el estado</option>
+                <option value="Nuevo">Nuevo</option>
+                <option value="Regular">Regular</option>
+                <option value="Malo">Malo</option>
+              </select>
+            </label>
+            <label className="flex flex-col text-white">
+              Código Nuevo:
+              <input
+                type="text"
+                name="codigoNuevo"
+                value={activo.codigoNuevo}
+                onChange={handleInputChange}
+                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
+              />
+            </label>
+          </div>
+          <div className="col-span-1 flex flex-col text-white">
+            <label className="mb-4">Orden de Compra:</label>
+            <div
+              className={`mb-4 border-dashed border-2 ${dragOver ? 'border-green-500' : 'border-gray-300'} rounded-lg p-4 text-center cursor-pointer`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onClick={() => document.querySelector('input[type="file"]').click()}
+            >
+              <input
+                type="file"
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={isFileUploaded}
+              />
+              {filePreview ? (
+                <div>
+                  <img src={filePreview} alt="Vista previa del archivo" className="mx-auto mb-4 max-h-48" />
+                  {!isFileUploaded && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      className="text-red-500"
+                    >
+                      Eliminar archivo
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <span>Arrastra y suelta un archivo aquí, o haz clic para seleccionar uno.</span>
+              )}
+            </div>
+            {!isFileUploaded && (
+              <button
+                type="button"
+                onClick={handleUpload}
+                className={`py-2 px-4 ${isUploading ? 'bg-gray-400' : 'bg-primary'} text-white rounded-lg`}
+                disabled={isUploading}
+              >
+                {isUploading ? 'Subiendo...' : 'Subir archivo'}
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleAddActivo}
+            className="col-span-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+          >
+            Añadir Activo
+          </button>
+          <button
+            type="submit"
+            className="col-span-2 bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-dark"
+          >
+            Guardar Todo
+          </button>
         </form>
+        {activosList.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-2xl text-center text-white mb-4">Activos por registrar</h2>
+            <ul className="list-disc list-inside text-white">
+              {activosList.map((activo, index) => (
+                <li key={index}>
+                  {activo.nombre} (Cantidad: {activo.cantidad})
+                  <button
+                    onClick={() => handleEditActivo(index)}
+                    className="ml-4 text-blue-500 hover:text-blue-700"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleRemoveActivo(index)}
+                    className="ml-4 text-red-500 hover:text-red-700"
+                  >
+                    Eliminar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
+      <ToastContainer />
     </div>
   );
 };

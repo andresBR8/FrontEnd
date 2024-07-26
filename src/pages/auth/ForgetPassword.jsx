@@ -9,6 +9,7 @@ const ForgetPassword = () => {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const handleInputChange = (e) => {
     setEmail(e.target.value);
@@ -18,7 +19,7 @@ const ForgetPassword = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await axios.post('http://192.168.100.48:5075/api/Users/request-reset-password', JSON.stringify(email), {
+      const response = await axios.post(`${apiUrl}/request-reset-password`, JSON.stringify(email), {
         headers: {
           'Content-Type': 'application/json'
         }

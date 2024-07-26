@@ -1,8 +1,57 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RiMailLine, RiLockLine, RiEyeLine, RiEyeOffLine, RiUserLine, RiCloseLine } from "react-icons/ri";
 
-const RegisterUser = ({ onClose }) => {
+const RegisterUser = ({ user, onClose, onSave }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    id: '',
+    name: '',
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: ''
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        id: user.id || '',
+        name: user.name || '',
+        username: user.username || '',
+        email: user.email || '',
+        password: '',
+        confirmPassword: '',
+        role: user.role || ''
+      });
+    }
+  }, [user]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prevState => ({
+      ...prevState,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+
+    const userData = {
+      username: formData.username,
+      password: formData.password,
+      name: formData.name,
+      email: formData.email,
+      role: formData.role
+    };
+
+    onSave(userData);
+  };
 
   return (
     <div className="flex items-center justify-center p-4">
@@ -15,39 +64,55 @@ const RegisterUser = ({ onClose }) => {
           <RiCloseLine />
         </button>
         <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-          Registrar <span className="text-primary">Usuario</span>
+          {user ? 'Actualizar' : 'Registrar'} <span className="text-primary">Usuario</span>
         </h1>
-        <form className="mb-8">
+        <form className="mb-8" onSubmit={handleSubmit}>
           <div className="relative mb-4">
             <RiUserLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
             <input
               type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
               className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
-              placeholder="Nombre(s)"
+              placeholder="Nombre"
+              required
             />
           </div>
           <div className="relative mb-4">
             <RiUserLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
             <input
               type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
               className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
-              placeholder="Apellidos"
+              placeholder="Usuario"
+              required
             />
           </div>
           <div className="relative mb-4">
             <RiMailLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
             <input
               type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
               className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
               placeholder="Correo electrónico"
+              required
             />
           </div>
           <div className="relative mb-4">
             <RiLockLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
             <input
               type={showPassword ? "text" : "password"}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
               className="py-2 px-8 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
               placeholder="Contraseña"
+              required
             />
             {showPassword ? (
               <RiEyeOffLine
@@ -61,12 +126,16 @@ const RegisterUser = ({ onClose }) => {
               />
             )}
           </div>
-          <div className="relative mb-8">
+          <div className="relative mb-4">
             <RiLockLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
             <input
               type={showPassword ? "text" : "password"}
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
               className="py-2 px-8 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
               placeholder="Confirmar contraseña"
+              required
             />
             {showPassword ? (
               <RiEyeOffLine
@@ -79,13 +148,25 @@ const RegisterUser = ({ onClose }) => {
                 className="absolute top-1/2 -translate-y-1/2 right-2 hover:cursor-pointer text-primary"
               />
             )}
+          </div>
+          <div className="relative mb-4">
+            <RiUserLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
+            <input
+              type="text"
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
+              placeholder="Rol"
+              required
+            />
           </div>
           <div>
             <button
               type="submit"
               className="bg-primary text-black uppercase font-bold text-sm w-full py-3 px-4 rounded-lg"
             >
-              Registrar
+              {user ? 'Actualizar' : 'Registrar'}
             </button>
           </div>
         </form>

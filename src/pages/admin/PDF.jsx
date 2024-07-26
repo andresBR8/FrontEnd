@@ -96,7 +96,7 @@ const CustodyDocument = ({ data, activos }) => {
           {activos.map((activo, index) => (
             <View key={index} style={styles.tableRow}>
               <View style={styles.tableColHeader}><Text style={styles.tableCell}>{activo.estado}</Text></View>
-              <View style={styles.tableCol}><Text style={styles.tableCell}>{activo.detalle}</Text></View>
+              <View style={styles.tableCol}><Text style={styles.tableCell}>{activo.nombre}</Text></View>
               <View style={styles.tableCol}><Text style={styles.tableCell}>{activo.id}</Text></View>
               <View style={styles.tableCol}><Text style={styles.tableCell}>{new Date(activo.fechaIngreso).toLocaleDateString()}</Text></View>
             </View>

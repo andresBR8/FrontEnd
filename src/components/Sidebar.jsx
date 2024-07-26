@@ -23,22 +23,23 @@ const Sidebar = () => {
   const [menuHeight, setMenuHeight] = useState('0');
 
   useEffect(() => {
-    const role = localStorage.getItem('fk_Rol');
+    const role = localStorage.getItem('role');
     setUserRole(role);
-    if (role === '3') {
+    if (role === 'Administrador') {
       setMenuHeight('170px');  // Altura para el rol 3
     } else {
       setMenuHeight('50px');   // Altura estándar para otros roles
     }
   }, []);
 
-  const shouldHideMenu = userRole === '2' || userRole === '3';
-  const shouldHideMenu2 = userRole === '3';
+  const shouldHideMenu = userRole === 'Encargado' || userRole === 'Personal';
+  const shouldHideMenu2 = userRole === 'Personal';
 
   const handleLogout = () => {
-    localStorage.removeItem("token");  // Elimina el token del localStorage
-    navigate("/login");  // Redirige al usuario a la página de inicio de sesión
+    localStorage.clear();  // Esto elimina todos los elementos de localStorage
+    navigate("/login");  
   };
+  
 
   return (
     <>
@@ -114,7 +115,7 @@ const Sidebar = () => {
                 {!shouldHideMenu2 && (
                 <li>
                   <Link
-                    to="/asignaractivos"
+                    to="/gestionaractivos"
                     className="py-2 px-4 border-l border-gray-500 ml-6 block relative before:w-3 before:h-3 before:absolute before:bg-primary before:rounded-full before:-left-[6.5px] before:top-1/2 before:-translate-y-1/2 before:border-4 before:border-secondary-100 hover:text-white transition-colors"
                   >
                     Asignación de Activos
@@ -165,18 +166,10 @@ const Sidebar = () => {
               </ul>
             </li>
             )}
+            
             <li>
               <Link
-                to="/tickets"
-                className="text-primary flex items-center gap-4 py-2 px-4 rounded-lg hover:bg-black transition-colors"
-              >
-                <RiCustomerService2Line className="text-secondary-900" /> Soporte
-                técnico
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/"
+                to="/calendario"
                 className="text-primary flex items-center gap-4 py-2 px-4 rounded-lg hover:bg-black transition-colors"
               >
                 <RiCalendarTodoLine className="text-secondary-900" /> Calendario

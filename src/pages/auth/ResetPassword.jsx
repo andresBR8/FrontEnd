@@ -11,6 +11,7 @@ const ResetPassword = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
@@ -36,7 +37,7 @@ const ResetPassword = () => {
         newPassword: newPassword
       };
 
-      const response = await axios.post('http://192.168.100.48:5075/api/Users/reset-password', payload, {
+      const response = await axios.post(`${apiUrl}/api/Users/reset-password`, payload, {
         headers: {
           'Content-Type': 'application/json'
         }

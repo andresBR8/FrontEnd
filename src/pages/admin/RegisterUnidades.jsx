@@ -7,9 +7,9 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
   const [unidad, setUnidad] = useState({
     id: '',
     ci: '',
-    cargo: '',
     nombre: '',
-    unidad: '',
+    fkCargo: '',
+    fkUnidad: '',
     otroCargo: '',
     otraUnidad: ''
   });
@@ -18,16 +18,21 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
   const [cargos, setCargos] = useState([]);
   const [unidadesList, setUnidadesList] = useState([]);
 
-  // Función para cargar cargos y unidades existentes
-  const fetchCargosYUnidades = async () => {
+  const fetchCargos = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/api/Personal`);
-      const cargosUnicos = Array.from(new Set(response.data.result.map(item => item.cargo)));
-      const unidadesUnicos = Array.from(new Set(response.data.result.map(item => item.unidad)));
-      setCargos(cargosUnicos.map(cargo => ({ value: cargo, label: cargo })));
-      setUnidadesList(unidadesUnicos.map(unidad => ({ value: unidad, label: unidad })));
+      const response = await axios.get(`${apiUrl}/cargos`);
+      setCargos(response.data.map(cargo => ({ value: cargo.id, label: cargo.nombre })));
     } catch (error) {
-      console.error('Error fetching cargos y unidades:', error);
+      console.error('Error fetching cargos:', error);
+    }
+  };
+
+  const fetchUnidades = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/unidades`);
+      setUnidadesList(response.data.map(unidad => ({ value: unidad.id, label: unidad.nombre })));
+    } catch (error) {
+      console.error('Error fetching unidades:', error);
     }
   };
 
@@ -35,13 +40,14 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
     setUnidad(initialUnidad || {
       id: '',
       ci: '',
-      cargo: '',
       nombre: '',
-      unidad: '',
+      fkCargo: '',
+      fkUnidad: '',
       otroCargo: '',
       otraUnidad: ''
     });
-    fetchCargosYUnidades();
+    fetchCargos();
+    fetchUnidades();
   }, [initialUnidad]);
 
   const handleInputChange = (e) => {
@@ -60,13 +66,34 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
     }));
   };
 
+  const handleCreate = async (inputValue, actionMeta) => {
+    const { name } = actionMeta;
+    try {
+      if (name === 'fkCargo') {
+        const response = await axios.post(`${apiUrl}/cargos`, { nombre: inputValue });
+        const newCargo = response.data;
+        setCargos(prev => [...prev, { value: newCargo.id, label: newCargo.nombre }]);
+        setUnidad(prevState => ({
+          ...prevState,
+          fkCargo: newCargo.id
+        }));
+      } else if (name === 'fkUnidad') {
+        const response = await axios.post(`${apiUrl}/unidades`, { nombre: inputValue });
+        const newUnidad = response.data;
+        setUnidadesList(prev => [...prev, { value: newUnidad.id, label: newUnidad.nombre }]);
+        setUnidad(prevState => ({
+          ...prevState,
+          fkUnidad: newUnidad.id
+        }));
+      }
+    } catch (error) {
+      console.error(`Error creating ${name === 'fkCargo' ? 'cargo' : 'unidad'}:`, error);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({
-      ...unidad,
-      cargo: unidad.cargo,
-      unidad: unidad.unidad
-    });
+    onSave(unidad);
   };
 
   return (
@@ -96,9 +123,10 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
           <label className="flex flex-col text-white">
             Cargo:
             <CreatableSelect
-              name="cargo"
-              value={cargos.find(option => option.value === unidad.cargo) || { value: unidad.cargo, label: unidad.cargo }}
+              name="fkCargo"
+              value={cargos.find(option => option.value === unidad.fkCargo) || { value: unidad.fkCargo, label: unidad.otroCargo }}
               onChange={handleSelectChange}
+              onCreateOption={handleCreate}
               options={cargos}
               placeholder="Seleccionar o escribir cargo"
               className="basic-single py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
@@ -118,9 +146,10 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
           <label className="flex flex-col text-white">
             Unidad:
             <CreatableSelect
-              name="unidad"
-              value={unidadesList.find(option => option.value === unidad.unidad) || { value: unidad.unidad, label: unidad.unidad }}
+              name="fkUnidad"
+              value={unidadesList.find(option => option.value === unidad.fkUnidad) || { value: unidad.fkUnidad, label: unidad.otraUnidad }}
               onChange={handleSelectChange}
+              onCreateOption={handleCreate}
               options={unidadesList}
               placeholder="Seleccionar o escribir unidad"
               className="basic-single py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
@@ -132,7 +161,7 @@ const RegisterUnidades = ({ unidad: initialUnidad, onSave, onClose }) => {
               type="submit"
               className="bg-primary text-black uppercase font-bold text-sm w-full py-3 px-4 rounded-lg"
             >
-              {unidad.id ? 'Actualizar' : 'Registrar'} Unidad
+              {unidad.id ? 'Actualizar' : 'Registrar'} Personal
             </button>
           </div>
         </form>

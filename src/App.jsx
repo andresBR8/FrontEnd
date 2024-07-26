@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Routes, Route } from "react-router-dom";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import PrivateRoute from './pages/auth/PrivateRoute';
 // Layouts
 import LayoutAuth from "./layouts/LayoutAuth";
@@ -20,20 +22,55 @@ import RegisterUser from "./pages/admin/RegisterUser";
 import RegisterActivos from "./pages/admin/RegisterActivos";
 import AsignarActivos from "./pages/admin/AsignarActivos";
 import Usuarios from "./pages/admin/Usuarios";
-import RegisterUnidades from "./pages/admin/RegisterUnidades"
-import SeguimientoActivos from "./pages/admin/SeguimientoActivos"
-import GestionActivos from "./pages/admin/GestionarActivos"
+import RegisterUnidades from "./pages/admin/RegisterUnidades";
+import SeguimientoActivos from "./pages/admin/SeguimientoActivos";
+import GestionActivos from "./pages/admin/GestionarActivos";
 import Reset from "./pages/auth/ResetPassword";
+import Calendario from "./pages/admin/Calendario";
+import Depreciacion from "./pages/admin/Depreciacion";
 
 function App() {
+  useEffect(() => {
+    function handleOnline() {
+      toast.success('Conexión a Internet reestablecida.', {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: true,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+    }
+
+    function handleOffline() {
+      toast.info('Entrando en modo visualizador. Solo podrás ver la información disponible.', {
+        position: "top-center",
+        autoClose: false,
+        hideProgressBar: true,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   return (
-    <BrowserRouter>
+    <>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Register />} />
         <Route path="/olvide-password" element={<ForgetPassword />} />
         <Route path="/reestablecer" element={<Reset />} />
-        
         
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<LayoutAdmin />}>
@@ -45,16 +82,19 @@ function App() {
             <Route path="unidades" element={<Unidades />} />
             <Route path="registrouser" element={<RegisterUser />} />
             <Route path="registroactivos" element={<RegisterActivos />} />
-            <Route path="asignaractivos" element={<AsignarActivos />} />
+            <Route path="asignar-activos" element={<AsignarActivos />} />
             <Route path="usuarios" element={<Usuarios />} />
             <Route path="registrounidades" element={<RegisterUnidades />} />
             <Route path="seguimientoactivos" element={<SeguimientoActivos />} />
             <Route path="gestionaractivos" element={<GestionActivos />} />
+            <Route path="calendario" element={<Calendario />} />
+            <Route path='depreciacion' element={<Depreciacion />} />
           </Route>
         </Route>
         <Route path="*" element={<Error404 />} />
       </Routes>
-    </BrowserRouter>
+      <ToastContainer />
+    </>
   );
 }
 

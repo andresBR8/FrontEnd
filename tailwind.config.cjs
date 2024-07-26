@@ -7,6 +7,8 @@ module.exports = {
         primary: "#ffba00",
         emi_azul: "#054473",
         emi_amarillo: "#ffba00",
+        emi_green: "#c6f6d5",
+
         secondary: {
           100: "#054473",
           900: "#ffffff",

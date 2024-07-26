@@ -11,24 +11,24 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const handleLogin = async (event) => {
     event.preventDefault();
 
     try {
-      const response = await axios.post("http://192.168.100.48:5075/api/Users/Login", {
+      const response = await axios.post(`${apiUrl}/auth/login`, {
         username,
         password
       });
-      console.log(response.data.result);
-      const { token } = response.data.result.token;
-      if (token !== null) {
-        localStorage.setItem("userId", response.data.result.user.id);
-        localStorage.setItem("token", token);
-        localStorage.setItem("nombre", response.data.result.user.nombre);
-        localStorage.setItem("apellido", response.data.result.user.apellido);
-        localStorage.setItem("email", response.data.result.user.email);
-        localStorage.setItem("fk_Rol", response.data.result.user.fk_Rol);
+      console.log(response.data);
+      const { access_token, user } = response.data;
+      if (access_token) {
+        localStorage.setItem("id", user.id);
+        localStorage.setItem("token", access_token);
+        localStorage.setItem("nombre", user.name);
+        localStorage.setItem("email", user.email);
+        localStorage.setItem("role", user.role);
         Swal.fire({
           title: '¡Usuario Conectado!',
           text: 'Bienvenido',
@@ -41,7 +41,7 @@ const Login = () => {
       }
     } catch (error) {
       console.log(error);
-      toast.error('Error de autenticación');
+      toast.error(error.response?.data?.message?.message || "Ocurrió un error al iniciar sesión.");
     }
   };
 
@@ -116,4 +116,3 @@ const Login = () => {
 };
 
 export default Login;
-
