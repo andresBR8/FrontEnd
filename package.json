@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "serve": "vite preview",
+    "start": "vite preview",
     "preview": "vite preview"
   },
   "dependencies": {
