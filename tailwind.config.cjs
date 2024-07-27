@@ -8,29 +8,26 @@ module.exports = {
         emi_azul: "#054473",
         emi_amarillo: "#ffba00",
         emi_green: "#c6f6d5",
-
         secondary: {
           100: "#054473",
           900: "#ffffff",
         },
       },
       backgroundImage: {
-        'login-background': "url('/src/assets/logo_desenfocao.JPG')"
-      },
-      backgroundImage: {
-        'login-background2': "url('/src/assets/logoo_emi.jpg')"
+        'login-background': "url('https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad')",
+        'login-background2': "url('https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad')"
       },
       backgroundSize: {
-        'size-cover': 'cover'  // Cubre completamente sin repetirse
+        'size-cover': 'cover'
       },
       backgroundRepeat: {
-        'no-repeat': 'no-repeat'  // No se repite la imagen
+        'no-repeat': 'no-repeat'
       },
       backgroundPosition: {
-        'position-center': 'center'  // Centra la imagen de fondo
+        'position-center': 'center'
       },
       opacity: {
-        '80': '0.90'  // Opacidad al 25%
+        '80': '0.90'
       }
     },
   },

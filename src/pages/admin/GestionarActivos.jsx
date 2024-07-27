@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Swal from 'sweetalert2';
 import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
 import { Bar } from 'react-chartjs-2';
@@ -13,50 +13,20 @@ const apiUrl = import.meta.env.VITE_API_URL;
 const AssetManagement = () => {
   const [assignments, setAssignments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [unidades, setUnidades] = useState([]);
-  const [usuarios, setUsuarios] = useState([]);
-  const [activos, setActivos] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchAssignments();
-    fetchUnidades();
-    fetchUsuarios();
-    fetchActivos();
   }, []);
 
-  const fetchAssignments = () => {
-    axios.get(`${apiUrl}/asignacion`)
-      .then(response => {
-        setAssignments(response.data.data);
-      })
-      .catch(error => console.error('Error fetching data:', error));
-  };
-
-  const fetchUnidades = () => {
-    axios.get(`${apiUrl}/unidades`)
-      .then(response => {
-        const unidadesData = response.data.map(unidad => ({ value: unidad.id, label: unidad.nombre }));
-        setUnidades(unidadesData);
-      })
-      .catch(error => console.error('Error fetching data:', error));
-  };
-
-  const fetchUsuarios = () => {
-    axios.get(`${apiUrl}/users`)
-      .then(response => {
-        const usuariosData = response.data.data.map(usuario => ({ value: usuario.id, label: usuario.username }));
-        setUsuarios(usuariosData);
-      })
-      .catch(error => console.error('Error fetching data:', error));
-  };
-
-  const fetchActivos = () => {
-    axios.get(`${apiUrl}/activo-modelo`)
-      .then(response => {
-        const activosData = response.data.data.map(activo => ({ value: activo.id, label: activo.nombre }));
-        setActivos(activosData);
-      })
-      .catch(error => console.error('Error fetching data:', error));
+  const fetchAssignments = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/asignacion`);
+      setAssignments(response.data.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
   };
 
   const handleDelete = (id) => {
@@ -86,12 +56,21 @@ const AssetManagement = () => {
     setSearchTerm(e.target.value.toLowerCase());
   };
 
-  const filteredAssignments = assignments.filter(assignment =>
-    assignment.personal.nombre.toLowerCase().includes(searchTerm) ||
-    assignment.usuario.username.toLowerCase().includes(searchTerm) ||
-    assignment.detalle.toLowerCase().includes(searchTerm) ||
-    assignment.personal.unidad?.nombre?.toLowerCase().includes(searchTerm)
-  );
+  const filteredAssignments = useMemo(() =>
+    assignments.filter(assignment =>
+      assignment.personal.nombre.toLowerCase().includes(searchTerm) ||
+      assignment.usuario.username.toLowerCase().includes(searchTerm) ||
+      assignment.detalle.toLowerCase().includes(searchTerm) ||
+      assignment.personal.unidad?.nombre?.toLowerCase().includes(searchTerm)
+    ), [assignments, searchTerm]);
+
+  const paginatedAssignments = useMemo(() =>
+    filteredAssignments.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage), 
+    [filteredAssignments, currentPage, itemsPerPage]);
+
+  const handlePageClick = (pageIndex) => {
+    setCurrentPage(pageIndex);
+  };
 
   const barChartData = {
     labels: [...new Set(assignments.map(assignment => assignment.personal.unidad?.nombre))].filter(Boolean),
@@ -151,7 +130,7 @@ const AssetManagement = () => {
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 space-y-4 md:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Asignación de Activos</h1>
         <input 
           type="text" 
@@ -178,23 +157,23 @@ const AssetManagement = () => {
         <table className="w-full text-sm text-left text-emi_azul">
           <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
             <tr>
-              <th scope="col" className="py-2 px-6">ID</th>
-              <th scope="col" className="py-2 px-6">Usuario</th>
-              <th scope="col" className="py-2 px-6">Personal</th>
-              <th scope="col" className="py-2 px-6">Detalle</th>
-              <th scope="col" className="py-2 px-6">Unidad</th>
-              <th scope="col" className="py-2 px-6">Acciones</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">ID</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Usuario</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Personal</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Detalle</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Unidad</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {filteredAssignments.map((assignment) => (
+            {paginatedAssignments.map((assignment) => (
               <tr key={assignment.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                <td className="py-1 px-6">{assignment.id}</td>
-                <td className="py-1 px-6">{assignment.usuario.role}</td>
-                <td className="py-1 px-6">{assignment.personal.nombre}</td>
-                <td className="py-1 px-6">{assignment.detalle}</td>
-                <td className="py-1 px-6">{assignment.personal.unidad?.nombre || 'N/A'}</td>
-                <td className="py-1 px-6 text-right space-x-7">
+                <td className="py-1 px-2 lg:px-6">{assignment.id}</td>
+                <td className="py-1 px-2 lg:px-6">{assignment.usuario.role}</td>
+                <td className="py-1 px-2 lg:px-6">{assignment.personal.nombre}</td>
+                <td className="py-1 px-2 lg:px-6">{assignment.detalle}</td>
+                <td className="py-1 px-2 lg:px-6">{assignment.personal.unidad?.nombre || 'N/A'}</td>
+                <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
                   <button className="font-medium text-emi_amarillo dark:text-black hover:underline">
                     <RiEdit2Line size="1.5em" />
                   </button>
@@ -206,6 +185,17 @@ const AssetManagement = () => {
             ))}
           </tbody>
         </table>
+        <div className="flex justify-center mt-4 mb-4">
+          {Array.from({ length: Math.ceil(filteredAssignments.length / itemsPerPage) }, (_, index) => (
+            <button
+              key={index}
+              onClick={() => handlePageClick(index)}
+              className={`mx-1 px-3 py-1 rounded-lg ${currentPage === index ? 'bg-emi_azul text-white' : 'bg-white text-emi_azul border border-emi_azul'}`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

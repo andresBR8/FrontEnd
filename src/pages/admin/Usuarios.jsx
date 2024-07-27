@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
@@ -15,11 +15,11 @@ const customStyles = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-35%, -50%)',
+    transform: 'translate(-50%, -50%)',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: '50px',
     padding: '2px',
-    width: '31%',
+    width: '90%',
     maxWidth: '600px'
   },
   overlay: {
@@ -31,6 +31,8 @@ const Usuarios = () => {
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [itemsPerPage] = useState(10);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   const fetchUsers = async () => {
@@ -114,9 +116,23 @@ const Usuarios = () => {
       });
   };
 
+  const filteredUsers = useMemo(() => {
+    return users;
+  }, [users]);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = currentPage * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  const handlePageClick = useCallback(({ selected }) => {
+    setCurrentPage(selected);
+  }, []);
+
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-10 space-y-4 lg:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Usuarios</h1>
         <button onClick={handleAdd} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
           Agregar Usuario
@@ -133,23 +149,23 @@ const Usuarios = () => {
         <table className="w-full text-sm text-left text-emi_azul">
           <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
             <tr>
-              <th scope="col" className="py-2 px-6">ID</th>
-              <th scope="col" className="py-2 px-6">Nombre</th>
-              <th scope="col" className="py-2 px-6">Usuario</th>
-              <th scope="col" className="py-2 px-6">Email</th>
-              <th scope="col" className="py-2 px-6">Rol</th>
-              <th scope="col" className="py-2 px-6">Acciones</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">ID</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Nombre</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Usuario</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Email</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Rol</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {paginatedUsers.map((user) => (
               <tr key={user.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                <td className="py-2 px-6">{user.id}</td>
-                <td className="py-2 px-6">{user.name}</td>
-                <td className="py-2 px-6">{user.username}</td>
-                <td className="py-2 px-6">{user.email}</td>
-                <td className="py-2 px-6">{user.role}</td>
-                <td className="py-2 px-6 text-right space-x-7">
+                <td className="py-1 px-2 lg:px-6">{user.id}</td>
+                <td className="py-1 px-2 lg:px-6">{user.name}</td>
+                <td className="py-1 px-2 lg:px-6">{user.username}</td>
+                <td className="py-1 px-2 lg:px-6">{user.email}</td>
+                <td className="py-1 px-2 lg:px-6">{user.role}</td>
+                <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
                   <button onClick={() => handleEdit(user)} className="font-medium text-emi_amarillo dark:text-black hover:underline">
                     <RiEdit2Line size="1.5em" />
                   </button>
@@ -161,6 +177,17 @@ const Usuarios = () => {
             ))}
           </tbody>
         </table>
+        <div className="flex justify-center mt-4 mb-4">
+          {Array.from({ length: Math.ceil(filteredUsers.length / itemsPerPage) }, (_, index) => (
+            <button
+              key={index}
+              onClick={() => handlePageClick({ selected: index })}
+              className={`mx-1 px-3 py-1 rounded-lg ${currentPage === index ? 'bg-emi_azul text-white' : 'bg-white text-emi_azul border border-emi_azul'}`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

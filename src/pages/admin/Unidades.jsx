@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Swal from 'sweetalert2';
 import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
 import RegisterUnidades from "./RegisterUnidades";
@@ -15,11 +15,11 @@ const customStyles = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-35%, -50%)',
+    transform: 'translate(-50%, -50%)',
     backgroundColor: 'rgba(255, 255, 255, 0.35)',
     borderRadius: '50px',
     padding: '2px',
-    width: '90%',
+    width: '75%',
     maxWidth: '900px'
   },
   overlay: {
@@ -32,16 +32,19 @@ const Personal = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUnidad, setSelectedUnidad] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(0);
   const apiUrl = import.meta.env.VITE_API_URL;
 
-  const fetchUnidades = async () => {
+  const itemsPerPage = 10;
+
+  const fetchUnidades = useCallback(async () => {
     try {
       const response = await axios.get(`${apiUrl}/personal`);
       setUnidades(response.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
-  };
+  }, [apiUrl]);
 
   useEffect(() => {
     fetchUnidades();
@@ -50,7 +53,7 @@ const Personal = () => {
       withCredentials: true,
     });
 
-    socket.emit('setRole', localStorage.getItem('role')); // Asigna el rol del usuario
+    socket.emit('setRole', localStorage.getItem('role'));
 
     socket.on('personal-changed', () => {
       fetchUnidades();
@@ -59,14 +62,14 @@ const Personal = () => {
     return () => {
       socket.disconnect();
     };
-  }, [apiUrl]);
+  }, [apiUrl, fetchUnidades]);
 
-  const handleEdit = (unidad) => {
+  const handleEdit = useCallback((unidad) => {
     setSelectedUnidad(unidad);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     setSelectedUnidad({
       id: '',
       ci: '',
@@ -75,9 +78,9 @@ const Personal = () => {
       fkUnidad: ''
     });
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (id) => {
+  const handleDelete = useCallback((id) => {
     Swal.fire({
       title: '¿Estás seguro?',
       text: "¡No podrás revertir esto!",
@@ -98,20 +101,32 @@ const Personal = () => {
           });
       }
     });
-  };
+  }, [apiUrl, fetchUnidades]);
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value.toLowerCase());
   };
 
-  const filteredUnidades = unidades.filter(unidad =>
-    unidad.nombre.toLowerCase().includes(searchTerm) ||
-    unidad.ci.toLowerCase().includes(searchTerm)
+  const filteredUnidades = useMemo(() => 
+    unidades.filter(unidad =>
+      unidad.nombre.toLowerCase().includes(searchTerm) ||
+      unidad.ci.toLowerCase().includes(searchTerm)
+    ),
+    [unidades, searchTerm]
   );
+
+  const paginatedUnidades = useMemo(() => 
+    filteredUnidades.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage),
+    [filteredUnidades, currentPage, itemsPerPage]
+  );
+
+  const handlePageClick = (data) => {
+    setCurrentPage(data.selected);
+  };
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-10 space-y-4 lg:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Personal</h1>
         <input 
           type="text" 
@@ -150,23 +165,23 @@ const Personal = () => {
         <table className="w-full text-sm text-left text-emi_azul">
           <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
             <tr>
-              <th scope="col" className="py-2 px-6">ID</th>
-              <th scope="col" className="py-2 px-6">CI</th>
-              <th scope="col" className="py-2 px-6">Nombre</th>
-              <th scope="col" className="py-2 px-6">Cargo</th>
-              <th scope="col" className="py-2 px-6">Unidad</th>
-              <th scope="col" className="py-2 px-6">Acciones</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">ID</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">CI</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Nombre</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Cargo</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Unidad</th>
+              <th scope="col" className="py-2 px-2 lg:px-6">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {filteredUnidades.map((unidad) => (
+            {paginatedUnidades.map((unidad) => (
               <tr key={unidad.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                <td className="py-1 px-6">{unidad.id}</td>
-                <td className="py-1 px-6">{unidad.ci}</td>
-                <td className="py-1 px-6">{unidad.nombre}</td>
-                <td className="py-1 px-6">{unidad.cargo.nombre}</td>
-                <td className="py-1 px-6">{unidad.unidad.nombre}</td>
-                <td className="py-1 px-6 text-right space-x-7">
+                <td className="py-1 px-2 lg:px-6">{unidad.id}</td>
+                <td className="py-1 px-2 lg:px-6">{unidad.ci}</td>
+                <td className="py-1 px-2 lg:px-6">{unidad.nombre}</td>
+                <td className="py-1 px-2 lg:px-6">{unidad.cargo.nombre}</td>
+                <td className="py-1 px-2 lg:px-6">{unidad.unidad.nombre}</td>
+                <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
                   <button onClick={() => handleEdit(unidad)} className="font-medium text-emi_amarillo dark:text-black hover:underline">
                     <RiEdit2Line size="1.5em" />
                   </button>
@@ -178,6 +193,17 @@ const Personal = () => {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="flex justify-center mt-4 mb-4">
+        {Array.from({ length: Math.ceil(filteredUnidades.length / itemsPerPage) }, (_, index) => (
+          <button
+            key={index}
+            onClick={() => handlePageClick({ selected: index })}
+            className={`mx-1 px-3 py-1 rounded-lg ${currentPage === index ? 'bg-emi_azul text-white' : 'bg-white text-emi_azul border border-emi_azul'}`}
+          >
+            {index + 1}
+          </button>
+        ))}
       </div>
     </div>
   );

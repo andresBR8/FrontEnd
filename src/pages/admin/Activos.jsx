@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Swal from 'sweetalert2';
 import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiRefreshLine, RiEyeLine } from "react-icons/ri";
-import RegisterActivo from "./RegisterActivos";
+import RegisterActivos from "./RegisterActivos";
 import Modal from 'react-modal';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
@@ -17,12 +17,14 @@ const estilosPersonalizados = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-35%, -50%)',
+    transform: 'translate(-50%, -50%)',
     backgroundColor: 'rgba(255, 255, 255, 0.35)',
     borderRadius: '50px',
     padding: '2px',
-    width: '100%',
+    width: '90%',
     maxWidth: '1000px',
+    overflow: 'auto', // Habilitar el desplazamiento
+    maxHeight: '90vh', // Limitar la altura máxima para evitar desbordamientos
   },
   overlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.75)'
@@ -37,31 +39,25 @@ const Activos = () => {
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [tipoOrden, setTipoOrden] = useState('');
   const [direccionOrden, setDireccionOrden] = useState('asc');
-  const [rolUsuario, setRolUsuario] = useState(null);
   const [paginaActual, setPaginaActual] = useState(1);
-  const [activosPorPagina] = useState(10); // Número de activos por página
+  const [activosPorPagina] = useState(10);
   const navigate = useNavigate();
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
-  const obtenerActivos = () => {
+  const obtenerActivos = useCallback(() => {
     axios.get(`${apiUrl}/activo-modelo`)
       .then(response => {
-        console.log('Activos obtenidos:', response.data.data);
         setActivos(response.data.data);
       })
       .catch(error => {
         console.error('Error consulta activos:', error);
       });
-  };
+  }, [apiUrl]);
 
   useEffect(() => {
     obtenerActivos();
-    const rol = localStorage.getItem('fk_Rol');
-    setRolUsuario(rol);
-  }, []);
-
-  const ocultarMenu = rolUsuario === '3';
+  }, [obtenerActivos]);
 
   const guardarActivo = (activo) => {
     const metodo = activo.id ? 'put' : 'post';
@@ -155,7 +151,6 @@ const Activos = () => {
     } else {
       axios.get(`${apiUrl}/activo-modelo/${id}`)
         .then(response => {
-          console.log(`Unidades obtenidas para activo ${id}:`, response.data.data.activoUnidades);
           setUnidades(prev => ({ ...prev, [id]: response.data.data.activoUnidades }));
         })
         .catch(error => {
@@ -173,18 +168,16 @@ const Activos = () => {
     navigate(`/seguimiento/${id}`);
   };
 
-  // Obtener activos actuales
   const indexOfLastActivo = paginaActual * activosPorPagina;
   const indexOfFirstActivo = indexOfLastActivo - activosPorPagina;
   const activosFiltrados = activos.filter(activo => activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase()));
   const activosPaginados = activosFiltrados.slice(indexOfFirstActivo, indexOfLastActivo);
 
-  // Cambiar de página
   const paginacion = (numeroPagina) => setPaginaActual(numeroPagina);
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-10 space-y-4 lg:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Activos</h1>
         <input 
           type="text" 
@@ -193,43 +186,39 @@ const Activos = () => {
           onChange={e => setTerminoBusqueda(e.target.value)} 
           className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
         />
-        {!ocultarMenu && (
         <button onClick={agregarActivo} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
           Agregar Activos
         </button>
-        )}
       </div>
       <Modal isOpen={modalAbierto} onRequestClose={() => setModalAbierto(false)} style={estilosPersonalizados}>
-        <RegisterActivo activo={activoSeleccionado} onClose={() => setModalAbierto(false)} onSave={guardarActivo} />
+        <RegisterActivos activo={activoSeleccionado} onClose={() => setModalAbierto(false)} onSave={guardarActivo} />
       </Modal>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-emi_azul">
           <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
             <tr>
-              <th scope="col" className="py-1 px-6 cursor-pointer" onClick={() => ordenarPor('id')}>
+              <th scope="col" className="py-1 px-2 lg:px-6 cursor-pointer" onClick={() => ordenarPor('id')}>
                 ID {tipoOrden === 'id' && (direccionOrden === 'asc' ? '↑' : '↓')}
               </th>
-              <th scope="col" className="py-1 px-6 cursor-pointer" onClick={() => ordenarPor('nombre')}>
+              <th scope="col" className="py-1 px-2 lg:px-6 cursor-pointer" onClick={() => ordenarPor('nombre')}>
                 Nombre {tipoOrden === 'nombre' && (direccionOrden === 'asc' ? '↑' : '↓')}
               </th>
-              <th scope="col" className="py-1 px-6 cursor-pointer" onClick={() => ordenarPor('descripcion')}>
+              <th scope="col" className="py-1 px-2 lg:px-6 cursor-pointer" onClick={() => ordenarPor('descripcion')}>
                 Descripción {tipoOrden === 'descripcion' && (direccionOrden === 'asc' ? '↑' : '↓')}
               </th>
-              <th scope="col" className="py-1 px-6 cursor-pointer" onClick={() => ordenarPor('estado')}>
+              <th scope="col" className="py-1 px-2 lg:px-6 cursor-pointer" onClick={() => ordenarPor('estado')}>
                 Estado {tipoOrden === 'estado' && (direccionOrden === 'asc' ? '↑' : '↓')}
               </th>
-              <th scope="col" className="py-1 px-6 cursor-pointer" onClick={() => ordenarPor('fechaIngreso')}>
+              <th scope="col" className="py-1 px-2 lg:px-6 cursor-pointer" onClick={() => ordenarPor('fechaIngreso')}>
                 Fecha de Ingreso {tipoOrden === 'fechaIngreso' && (direccionOrden === 'asc' ? '↑' : '↓')}
               </th>
-              <th scope="col" className="py-1 px-6">
+              <th scope="col" className="py-1 px-2 lg:px-6">
                 Costo
               </th>
-              {!ocultarMenu && (
-              <th scope="col" className="py-1 px-6">
+              <th scope="col" className="py-1 px-2 lg:px-6">
                 Acciones
               </th>
-              )}
-              <th scope="col" className="py-1 px-6">
+              <th scope="col" className="py-1 px-2 lg:px-6">
                 Unidades
               </th>
             </tr>
@@ -238,14 +227,13 @@ const Activos = () => {
             {activosPaginados.map((activo) => (
               <React.Fragment key={activo.id}>
                 <tr className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                  <td className="py-1 px-6">{activo.id}</td>
-                  <td className="py-1 px-6">{activo.nombre}</td>
-                  <td className="py-1 px-6">{activo.descripcion}</td>
-                  <td className="py-1 px-6">{activo.estado}</td>
-                  <td className="py-1 px-6">{new Date(activo.fechaIngreso).toLocaleDateString()}</td>
-                  <td className="py-1 px-6">{activo.costo} Bs</td>
-                  {!ocultarMenu && (
-                  <td className="py-1 px-6 text-right space-x-7">
+                  <td className="py-1 px-2 lg:px-6">{activo.id}</td>
+                  <td className="py-1 px-2 lg:px-6">{activo.nombre}</td>
+                  <td className="py-1 px-2 lg:px-6">{activo.descripcion}</td>
+                  <td className="py-1 px-2 lg:px-6">{activo.estado}</td>
+                  <td className="py-1 px-2 lg:px-6">{new Date(activo.fechaIngreso).toLocaleDateString()}</td>
+                  <td className="py-1 px-2 lg:px-6">{activo.costo} Bs</td>
+                  <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
                     <button onClick={() => editarActivo(activo)} disabled={unidades[activo.id] && unidades[activo.id].some(unidad => unidad.asignado)} className={`font-medium ${unidades[activo.id] && unidades[activo.id].some(unidad => unidad.asignado) ? 'text-gray-400' : 'text-emi_amarillo dark:text-black hover:underline'}`}>
                       <RiEdit2Line size="1.5em" />
                     </button>
@@ -253,8 +241,7 @@ const Activos = () => {
                       <RiDeleteBin6Line size="1.5em" />
                     </button>
                   </td>
-                  )}
-                  <td className="py-1 px-6 text-right">
+                  <td className="py-1 px-2 lg:px-6 text-right">
                     <button onClick={() => manejarUnidades(activo.id)} className="font-medium text-emi_azul dark:text-emi_amarillo hover:underline">
                       {unidades[activo.id] ? <RiArrowUpSLine size="1.5em" /> : <RiArrowDownSLine size="1.5em" />}
                     </button>
@@ -266,17 +253,17 @@ const Activos = () => {
                       <table className="w-full text-sm text-left text-emi_azul">
                         <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
                           <tr>
-                            <th scope="col" className="py-1 px-6">Código</th>
-                            <th scope="col" className="py-1 px-6">Asignado</th>
-                            <th scope="col" className="py-1 px-6">Acciones</th>
+                            <th scope="col" className="py-1 px-2 lg:px-6">Código</th>
+                            <th scope="col" className="py-1 px-2 lg:px-6">Asignado</th>
+                            <th scope="col" className="py-1 px-2 lg:px-6">Acciones</th>
                           </tr>
                         </thead>
                         <tbody>
                           {unidades[activo.id].map((unidad) => (
                             <tr key={unidad.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                              <td className="py-1 px-6">{unidad.codigo}</td>
-                              <td className="py-1 px-6">{unidad.asignado ? 'Sí' : 'No'}</td>
-                              <td className="py-1 px-6 text-right space-x-4">
+                              <td className="py-1 px-2 lg:px-6">{unidad.codigo}</td>
+                              <td className="py-1 px-2 lg:px-6">{unidad.asignado ? 'Sí' : 'No'}</td>
+                              <td className="py-1 px-2 lg:px-6 text-right space-x-4">
                                 <button onClick={() => manejarAsignacion(unidad.id, unidad.asignado)} className={`font-medium ${unidad.asignado ? 'text-yellow-500' : 'text-green-500'} hover:underline`}>
                                   {unidad.asignado ? (
                                     <span className="flex items-center">

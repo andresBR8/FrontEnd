@@ -1,130 +1,121 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { RiAddLine, RiEditLine, RiDeleteBinLine, RiDownloadLine } from 'react-icons/ri';
+import React, { useState, useEffect } from "react";
 import Swal from 'sweetalert2';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { RiCheckboxBlankLine, RiCheckboxLine, RiCheckboxMultipleLine, RiSearchLine, RiDownloadLine } from "react-icons/ri";
+import axios from 'axios';
 import { Bar } from 'react-chartjs-2';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { useSnackbar } from 'notistack';
-import { Button, Modal, TextField, MenuItem } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+const apiUrl = import.meta.env.VITE_API_URL;
 
 const Depreciation = () => {
-  const [depreciations, setDepreciations] = useState([]);
-  const [assets, setAssets] = useState([]);
+  const [activos, setActivos] = useState([]);
+  const [filteredActivos, setFilteredActivos] = useState([]);
+  const [partidas, setPartidas] = useState([]);
+  const [activeModelo, setActiveModelo] = useState(null);
+  const [filtroModelo, setFiltroModelo] = useState('');
   const [methods] = useState(['Línea Recta', 'Saldos Decrecientes', 'Unidades de Producción']);
-  const [newDepreciation, setNewDepreciation] = useState({
-    fkActivoUnidad: '',
-    fecha: '',
-    valor: '',
-    metodo: '',
-    ajuste: '',
-    revaluacion: ''
-  });
-  const [openModal, setOpenModal] = useState(false);
-  const [editDepreciation, setEditDepreciation] = useState(null);
-
-  const { enqueueSnackbar } = useSnackbar();
-  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    const fetchDepreciations = async () => {
-      try {
-        const response = await axios.get(`${apiUrl}/depreciacion`);
-        setDepreciations(response.data.data);
-      } catch (error) {
-        handleError(error, "Error al obtener las depreciaciones.");
-      }
-    };
+    axios.get(`${apiUrl}/activo-modelo`)
+      .then(response => {
+        setActivos(response.data.data);
+        setFilteredActivos(response.data.data);
+      })
+      .catch(error => console.error('Error fetching activos:', error));
 
-    const fetchAssets = async () => {
-      try {
-        const response = await axios.get(`${apiUrl}/activo-unidad`);
-        setAssets(response.data.data);
-      } catch (error) {
-        handleError(error, "Error al obtener los activos.");
-      }
-    };
+    axios.get(`${apiUrl}/partida`)
+      .then(response => setPartidas(response.data.data))
+      .catch(error => console.error('Error fetching partidas:', error));
+  }, []);
 
-    fetchDepreciations();
-    fetchAssets();
-  }, [apiUrl]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewDepreciation({ ...newDepreciation, [name]: value });
+  const handleFiltroModeloChange = (e) => {
+    setFiltroModelo(e.target.value);
+    setFilteredActivos(activos.filter(modelo => modelo.nombre.toLowerCase().includes(e.target.value.toLowerCase())));
   };
 
-  const handleAddDepreciation = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await axios.post(`${apiUrl}/depreciacion`, newDepreciation);
-      setDepreciations([...depreciations, response.data]);
-      Swal.fire({
-        title: 'Depreciación agregada!',
-        text: 'La depreciación ha sido añadida con éxito.',
-        icon: 'success',
-        confirmButtonText: 'Aceptar'
-      });
-      setNewDepreciation({ fkActivoUnidad: '', fecha: '', valor: '', metodo: '', ajuste: '', revaluacion: '' });
-    } catch (error) {
-      handleError(error, "Error al agregar la depreciación.");
-    }
-  };
-
-  const handleEditDepreciation = (id) => {
-    const dep = depreciations.find(d => d.id === id);
-    setEditDepreciation(dep);
-    setOpenModal(true);
-  };
-
-  const handleUpdateDepreciation = async () => {
-    try {
-      await axios.put(`${apiUrl}/depreciacion/${editDepreciation.id}`, editDepreciation);
-      setDepreciations(depreciations.map(dep => (dep.id === editDepreciation.id ? editDepreciation : dep)));
-      enqueueSnackbar("Depreciación actualizada correctamente.", { variant: 'success' });
-      setOpenModal(false);
-      setEditDepreciation(null);
-    } catch (error) {
-      handleError(error, "Error al actualizar la depreciación.");
-    }
-  };
-
-  const handleDeleteDepreciation = async (id) => {
-    try {
-      await axios.delete(`${apiUrl}/depreciacion/${id}`);
-      setDepreciations(depreciations.filter(dep => dep.id !== id));
-      enqueueSnackbar("Depreciación eliminada correctamente.", { variant: 'success' });
-    } catch (error) {
-      handleError(error, "Error al eliminar la depreciación.");
-    }
-  };
-
-  const calculateDepreciation = (asset, metodo) => {
-    let depreciationValue;
-    const { vidaUtil, porcentajeDepreciacion, costo } = asset.activoModelo.partida;
-    const age = new Date().getFullYear() - new Date(asset.fechaIngreso).getFullYear();
+  const calculateDepreciationValue = (modelo, metodo) => {
+    const partida = partidas.find(p => p.id === modelo.fkPartida);
+    if (!partida) return 0;
+    const { vidaUtil, porcentajeDepreciacion, costo } = partida;
+    const age = new Date().getFullYear() - new Date(modelo.fechaIngreso).getFullYear();
 
     switch (metodo) {
       case 'Línea Recta':
-        depreciationValue = (costo / vidaUtil) * age;
-        break;
+        return (modelo.costo / vidaUtil) * age;
       case 'Saldos Decrecientes':
-        depreciationValue = costo * Math.pow((1 - (porcentajeDepreciacion / 100)), age);
-        break;
+        return modelo.costo * Math.pow((1 - (porcentajeDepreciacion / 100)), age);
       case 'Unidades de Producción':
-        depreciationValue = (costo / vidaUtil) * age; // Simplified, needs actual units produced data
-        break;
+        return (modelo.costo / vidaUtil) * age; // Simplificado, necesita datos reales de producción
       default:
-        depreciationValue = 0;
+        return 0;
     }
+  };
 
-    return depreciationValue;
+  const handleDepreciateAllAssets = async () => {
+    const allDepreciations = activos.map(modelo => ({
+      fkActivoUnidad: modelo.id,
+      fecha: new Date(),
+      valor: calculateDepreciationValue(modelo, 'Línea Recta'),
+      metodo: 'Línea Recta',
+      ajuste: 0,
+      revaluacion: 0
+    }));
+    try {
+      await Promise.all(allDepreciations.map(depreciacion => axios.post(`${apiUrl}/depreciacion`, depreciacion)));
+      Swal.fire('Éxito', 'Todas las depreciaciones se han realizado con éxito.', 'success');
+    } catch (error) {
+      console.error('Error depreciating all assets:', error);
+      Swal.fire('Error', 'No se pudo realizar la depreciación de todos los activos.', 'error');
+    }
+  };
+
+  const handleDepreciateModel = async (modeloId) => {
+    const modelo = activos.find(m => m.id === modeloId);
+    if (!modelo) return;
+    const depreciations = modelo.activoUnidades.map(unidad => ({
+      fkActivoUnidad: unidad.id,
+      fecha: new Date(),
+      valor: calculateDepreciationValue(modelo, 'Línea Recta'),
+      metodo: 'Línea Recta',
+      ajuste: 0,
+      revaluacion: 0
+    }));
+    try {
+      await Promise.all(depreciations.map(depreciacion => axios.post(`${apiUrl}/depreciacion`, depreciacion)));
+      Swal.fire('Éxito', `Depreciación de modelo ${modelo.nombre} realizada con éxito.`, 'success');
+    } catch (error) {
+      console.error('Error depreciating model:', error);
+      Swal.fire('Error', `No se pudo realizar la depreciación del modelo ${modelo.nombre}.`, 'error');
+    }
+  };
+
+  const handleDepreciateAsset = async (modeloId, unidadId) => {
+    const modelo = activos.find(m => m.id === modeloId);
+    const unidad = modelo?.activoUnidades.find(u => u.id === unidadId);
+    if (!modelo || !unidad) return;
+    const depreciation = {
+      fkActivoUnidad: unidad.id,
+      fecha: new Date(),
+      valor: calculateDepreciationValue(modelo, 'Línea Recta'),
+      metodo: 'Línea Recta',
+      ajuste: 0,
+      revaluacion: 0
+    };
+    try {
+      await axios.post(`${apiUrl}/depreciacion`, depreciation);
+      Swal.fire('Éxito', `Depreciación de activo ${unidad.codigo} realizada con éxito.`, 'success');
+    } catch (error) {
+      console.error('Error depreciating asset:', error);
+      Swal.fire('Error', `No se pudo realizar la depreciación del activo ${unidad.codigo}.`, 'error');
+    }
+  };
+
+  const toggleModeloUnidades = (modeloId) => {
+    setActiveModelo(activeModelo === modeloId ? null : modeloId);
   };
 
   const exportToPDF = () => {
@@ -132,53 +123,42 @@ const Depreciation = () => {
     doc.text("Reporte de Depreciaciones", 20, 10);
     doc.autoTable({
       head: [['ID', 'Fecha', 'Valor', 'Método', 'Ajuste', 'Revaluación']],
-      body: depreciations.map(dep => [
-        dep.id,
-        new Date(dep.fecha).toLocaleDateString(),
-        dep.valor,
-        dep.metodo,
-        dep.ajuste,
-        dep.revaluacion
-      ])
+      body: activos.flatMap(modelo => 
+        modelo.activoUnidades.map(unidad => [
+          unidad.id,
+          new Date().toLocaleDateString(),
+          calculateDepreciationValue(modelo, 'Línea Recta'),
+          'Línea Recta',
+          0,
+          0
+        ])
+      )
     });
     doc.save('reporte_depreciaciones.pdf');
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(depreciations.map(dep => ({
-      ID: dep.id,
-      Fecha: new Date(dep.fecha).toLocaleDateString(),
-      Valor: dep.valor,
-      Método: dep.metodo,
-      Ajuste: dep.ajuste,
-      Revaluación: dep.revaluacion
-    })));
+    const worksheet = XLSX.utils.json_to_sheet(activos.flatMap(modelo => 
+      modelo.activoUnidades.map(unidad => ({
+        ID: unidad.id,
+        Fecha: new Date().toLocaleDateString(),
+        Valor: calculateDepreciationValue(modelo, 'Línea Recta'),
+        Método: 'Línea Recta',
+        Ajuste: 0,
+        Revaluación: 0
+      }))
+    ));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Depreciaciones');
     XLSX.writeFile(workbook, 'reporte_depreciaciones.xlsx');
   };
 
-  const handleError = (error, message) => {
-    if (error.response) {
-      console.error('Error data:', error.response.data);
-      console.error('Error status:', error.response.status);
-      console.error('Error headers:', error.response.headers);
-      enqueueSnackbar(`${message}: ${error.response.data.message || error.response.status}`, { variant: 'error' });
-    } else if (error.request) {
-      console.error('Error request:', error.request);
-      enqueueSnackbar(`${message}: No se recibió respuesta del servidor.`, { variant: 'error' });
-    } else {
-      console.error('Error message:', error.message);
-      enqueueSnackbar(`${message}: ${error.message}`, { variant: 'error' });
-    }
-  };
-
   const data = {
-    labels: depreciations.map(dep => dep.metodo),
+    labels: activos.map(modelo => modelo.nombre),
     datasets: [
       {
         label: 'Valor de Depreciación',
-        data: depreciations.map(dep => dep.valor),
+        data: activos.map(modelo => calculateDepreciationValue(modelo, 'Línea Recta')),
         backgroundColor: 'rgba(75, 192, 192, 0.6)'
       }
     ]
@@ -193,237 +173,80 @@ const Depreciation = () => {
     }
   };
 
-  const columns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'fecha', headerName: 'Fecha', width: 150, valueGetter: (params) => new Date(params.row.fecha).toLocaleDateString() },
-    { field: 'valor', headerName: 'Valor', width: 130 },
-    { field: 'metodo', headerName: 'Método', width: 200 },
-    { field: 'ajuste', headerName: 'Ajuste', width: 130 },
-    { field: 'revaluacion', headerName: 'Revaluación', width: 130 },
-    {
-      field: 'actions',
-      headerName: 'Acciones',
-      width: 150,
-      renderCell: (params) => (
-        <div className="flex gap-2">
-          <Button variant="contained" color="primary" onClick={() => handleEditDepreciation(params.row.id)}>
-            <RiEditLine />
-          </Button>
-          <Button variant="contained" color="secondary" onClick={() => handleDeleteDepreciation(params.row.id)}>
-            <RiDeleteBinLine />
-          </Button>
-        </div>
-      )
-    }
-  ];
-
   return (
-    <div className="min-h-screen p-4 bg-login-background2 flex flex-col items-center">
-      <div className="bg-secondary-100 p-8 rounded-xl shadow-2xl w-full lg:w-3/4">
-        <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-          Depreciaciones
+    <div className="flex flex-wrap justify-center p-4">
+      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl m-4 flex-grow lg:w-1/2">
+        <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-emi_amarillo mb-8">
+          Depreciar <span className="text-white">Activos</span>
         </h1>
-        <form className="mb-8 flex flex-col gap-4" onSubmit={handleAddDepreciation}>
-          <TextField
-            select
-            name="fkActivoUnidad"
-            label="Unidad de Activo"
-            value={newDepreciation.fkActivoUnidad}
-            onChange={handleInputChange}
-            variant="outlined"
-            fullWidth
-            required
-          >
-            <MenuItem value="">
-              <em>Seleccione Unidad de Activo</em>
-            </MenuItem>
-            {assets.map(asset => (
-              <MenuItem key={asset.id} value={asset.id}>
-                {asset.codigo} - {asset.activoModelo.nombre}
-              </MenuItem>
+        <button 
+          type="button" 
+          className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors mb-4"
+          onClick={handleDepreciateAllAssets}
+        >
+          Depreciar Todos los Activos
+        </button>
+        <div className="relative mb-4">
+          <RiSearchLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
+          <input 
+            type="text" 
+            className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
+            placeholder="Buscar modelo de activo..." 
+            value={filtroModelo} 
+            onChange={handleFiltroModeloChange} 
+          />
+        </div>
+        <div className="mb-4">
+          <h3 className="text-lg text-emi_amarillo font-bold mb-2">Seleccionar Activos</h3>
+          <div className="max-h-60 overflow-auto">
+            {filteredActivos.map(modelo => (
+              <div key={modelo.id} className="mb-4 border-b pb-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-emi_amarillo cursor-pointer" onClick={() => toggleModeloUnidades(modelo.id)}>{modelo.nombre}</h4>
+                    <p className="text-emi_amarillo">Cantidad disponible: {modelo.cantidad}</p>
+                  </div>
+                  <RiCheckboxMultipleLine 
+                    className="text-primary cursor-pointer" 
+                    onClick={() => handleDepreciateModel(modelo.id)} 
+                    title="Depreciar todos" 
+                  />
+                </div>
+                {activeModelo === modelo.id && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                    {modelo.activoUnidades.map(unidad => (
+                      <div key={unidad.id} className="flex items-center bg-white p-2 rounded-lg shadow-sm">
+                        <div className="flex items-center justify-center w-8 h-8 mr-2">
+                          <RiCheckboxBlankLine className="text-primary cursor-pointer" onClick={() => handleDepreciateAsset(modelo.id, unidad.id)} />
+                        </div>
+                        <div className="text-emi_azul">{unidad.codigo}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
-          </TextField>
-          <DatePicker
-            selected={new Date(newDepreciation.fecha)}
-            onChange={(date) => setNewDepreciation({ ...newDepreciation, fecha: date.toISOString() })}
-            className="py-3 px-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
-            required
-          />
-          <TextField
-            select
-            name="metodo"
-            label="Método de Depreciación"
-            value={newDepreciation.metodo}
-            onChange={handleInputChange}
-            variant="outlined"
-            fullWidth
-            required
-          >
-            <MenuItem value="">
-              <em>Seleccione Método de Depreciación</em>
-            </MenuItem>
-            {methods.map(method => (
-              <MenuItem key={method} value={method}>
-                {method}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            type="number"
-            name="valor"
-            label="Valor"
-            value={newDepreciation.valor}
-            onChange={handleInputChange}
-            variant="outlined"
-            fullWidth
-            required
-          />
-          <TextField
-            type="number"
-            name="ajuste"
-            label="Ajuste (opcional)"
-            value={newDepreciation.ajuste}
-            onChange={handleInputChange}
-            variant="outlined"
-            fullWidth
-          />
-          <TextField
-            type="number"
-            name="revaluacion"
-            label="Revaluación (opcional)"
-            value={newDepreciation.revaluacion}
-            onChange={handleInputChange}
-            variant="outlined"
-            fullWidth
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            className="uppercase font-bold text-sm w-full py-3 px-4 mt-4"
-            startIcon={<RiAddLine />}
-          >
-            Agregar Depreciación
-          </Button>
-        </form>
-        <div className="flex gap-4 mb-8">
-          <Button
-            onClick={exportToPDF}
-            variant="contained"
-            color="primary"
-            startIcon={<RiDownloadLine />}
-          >
-            Exportar PDF
-          </Button>
-          <Button
-            onClick={exportToExcel}
-            variant="contained"
-            color="secondary"
-            startIcon={<RiDownloadLine />}
-          >
-            Exportar Excel
-          </Button>
+          </div>
         </div>
-        <div style={{ height: 400, width: '100%' }}>
-          <DataGrid rows={depreciations} columns={columns} pageSize={5} />
-        </div>
-        <div className="my-8">
-          <Bar data={data} options={options} />
-        </div>
-        <ToastContainer />
+        <button 
+          type="button" 
+          className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors mb-4"
+          onClick={exportToPDF}
+        >
+          Exportar PDF
+        </button>
+        <button 
+          type="button" 
+          className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors mb-4"
+          onClick={exportToExcel}
+        >
+          Exportar Excel
+        </button>
       </div>
-
-      <Modal open={openModal} onClose={() => setOpenModal(false)}>
-        <div className="bg-secondary-100 p-8 rounded-xl shadow-2xl w-full lg:w-1/2 mx-auto mt-20">
-          <h2 className="text-2xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-            Editar Depreciación
-          </h2>
-          {editDepreciation && (
-            <>
-              <TextField
-                select
-                name="fkActivoUnidad"
-                label="Unidad de Activo"
-                value={editDepreciation.fkActivoUnidad}
-                onChange={(e) => setEditDepreciation({ ...editDepreciation, fkActivoUnidad: e.target.value })}
-                variant="outlined"
-                fullWidth
-                required
-              >
-                <MenuItem value="">
-                  <em>Seleccione Unidad de Activo</em>
-                </MenuItem>
-                {assets.map(asset => (
-                  <MenuItem key={asset.id} value={asset.id}>
-                    {asset.codigo} - {asset.activoModelo.nombre}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <DatePicker
-                selected={new Date(editDepreciation.fecha)}
-                onChange={(date) => setEditDepreciation({ ...editDepreciation, fecha: date.toISOString() })}
-                className="py-3 px-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul mt-4"
-                required
-              />
-              <TextField
-                select
-                name="metodo"
-                label="Método de Depreciación"
-                value={editDepreciation.metodo}
-                onChange={(e) => setEditDepreciation({ ...editDepreciation, metodo: e.target.value })}
-                variant="outlined"
-                fullWidth
-                required
-              >
-                <MenuItem value="">
-                  <em>Seleccione Método de Depreciación</em>
-                </MenuItem>
-                {methods.map(method => (
-                  <MenuItem key={method} value={method}>
-                    {method}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                type="number"
-                name="valor"
-                label="Valor"
-                value={editDepreciation.valor}
-                onChange={(e) => setEditDepreciation({ ...editDepreciation, valor: e.target.value })}
-                variant="outlined"
-                fullWidth
-                required
-              />
-              <TextField
-                type="number"
-                name="ajuste"
-                label="Ajuste (opcional)"
-                value={editDepreciation.ajuste}
-                onChange={(e) => setEditDepreciation({ ...editDepreciation, ajuste: e.target.value })}
-                variant="outlined"
-                fullWidth
-              />
-              <TextField
-                type="number"
-                name="revaluacion"
-                label="Revaluación (opcional)"
-                value={editDepreciation.revaluacion}
-                onChange={(e) => setEditDepreciation({ ...editDepreciation, revaluacion: e.target.value })}
-                variant="outlined"
-                fullWidth
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                className="uppercase font-bold text-sm w-full py-3 px-4 mt-4"
-                onClick={handleUpdateDepreciation}
-              >
-                Actualizar Depreciación
-              </Button>
-            </>
-          )}
-        </div>
-      </Modal>
+      <div className="w-full mt-4">
+        <Bar data={data} options={options} />
+      </div>
+      <ToastContainer />
     </div>
   );
 };

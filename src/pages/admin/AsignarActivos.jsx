@@ -5,6 +5,8 @@ import { PDFViewer } from '@react-pdf/renderer';
 import CustodyDocument from './PDF';
 import axios from 'axios';
 
+const apiUrl = import.meta.env.VITE_API_URL;
+
 const AsignarActivos = ({ onSave }) => {
   const [personal, setPersonal] = useState([]);
   const [activos, setActivos] = useState([]);
@@ -17,8 +19,6 @@ const AsignarActivos = ({ onSave }) => {
   const [pdfGenerated, setPdfGenerated] = useState(false);
   const [activeModelo, setActiveModelo] = useState(null);
 
-  const apiUrl = import.meta.env.VITE_API_URL;
-
   useEffect(() => {
     axios.get(`${apiUrl}/personal`)
       .then(response => setPersonal(response.data.data))
@@ -30,7 +30,7 @@ const AsignarActivos = ({ onSave }) => {
         setFilteredActivos(response.data.data);
       })
       .catch(error => console.error('Error fetching activos:', error));
-  }, [apiUrl]);
+  }, []);
 
   const handleSeleccionPersonal = (persona) => {
     setSelectedPersonal(persona);

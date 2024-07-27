@@ -28,6 +28,9 @@ import GestionActivos from "./pages/admin/GestionarActivos";
 import Reset from "./pages/auth/ResetPassword";
 import Calendario from "./pages/admin/Calendario";
 import Depreciacion from "./pages/admin/Depreciacion";
+import Bajas from "./pages/admin/Bajas";
+import Mantenimientos from "./pages/admin/Mantenimientos";
+import Reportes from "./pages/admin/Reportes";
 
 function App() {
   useEffect(() => {
@@ -89,6 +92,9 @@ function App() {
             <Route path="gestionaractivos" element={<GestionActivos />} />
             <Route path="calendario" element={<Calendario />} />
             <Route path='depreciacion' element={<Depreciacion />} />
+            <Route path='bajas' element={<Bajas />} />
+            <Route path='mantenimiento' element={<Mantenimientos />} />
+            <Route path='reportes' element={<Reportes />} />
           </Route>
         </Route>
         <Route path="*" element={<Error404 />} />

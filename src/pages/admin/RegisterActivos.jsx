@@ -35,7 +35,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
         setPartidas(response.data.data);
       })
       .catch(error => console.error('Error fetching partidas:', error));
-  }, []);
+  }, [apiUrl]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -123,6 +123,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
       !activo.estado ||
       !activo.codigoNuevo ||
       !activo.cantidad ||
+      activo.createdBy == localStorage.getItem('role') ||
       activo.cantidad < 1
     ) {
       toast.error('Por favor complete todos los campos obligatorios.');
@@ -169,16 +170,13 @@ const RegisterActivos = ({ onClose, onSave }) => {
       toast.error('No hay activos para registrar.');
       return;
     }
-    console.log('Activos a registrar:', activosList);
 
     for (const activo of activosList) {
       try {
         await axios.post(`${apiUrl}/activo-modelo`, activo);
-        console.log('Activo registrado:', activo);
         toast.success('Activo registrado exitosamente');
       } catch (error) {
         console.error('Error al registrar el activo:', error);
-        console.log(error.response);
         toast.error('Ocurrió un error al registrar el activo.');
       }
     }
@@ -188,7 +186,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
 
   return (
     <div className="flex items-center justify-center p-4">
-      <div className="relative bg-secondary-100 p-7 rounded-3xl shadow-3xl w-[90%] max-w-4xl">
+      <div className="relative bg-secondary-100 p-7 rounded-3xl shadow-3xl w-full lg:w-[800px] xl:w-[1000px] overflow-y-auto max-h-[80vh]">
         <button
           onClick={onClose}
           className="absolute top-0 right-0 text-2xl p-2 text-primary hover:text-white"
@@ -199,7 +197,51 @@ const RegisterActivos = ({ onClose, onSave }) => {
         <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
           Registrar <span className="text-primary">Activo</span>
         </h1>
-        <form className="grid grid-cols-3 gap-6" onSubmit={handleSubmit}>
+        <form className="grid grid-cols-1 md:grid-cols-3 gap-6" onSubmit={handleSubmit}>
+        <div className="col-span-1 flex flex-col text-white">
+            <label className="mb-4">Orden de Compra:</label>
+            <div
+              className={`mb-4 border-dashed border-2 ${dragOver ? 'border-green-500' : 'border-gray-300'} rounded-lg p-4 text-center cursor-pointer`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onClick={() => document.querySelector('input[type="file"]').click()}
+            >
+              <input
+                type="file"
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={isFileUploaded}
+              />
+              {filePreview ? (
+                <div>
+                  <img src={filePreview} alt="Vista previa del archivo" className="mx-auto mb-4 max-h-48" />
+                  {!isFileUploaded && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      className="text-red-500"
+                    >
+                      Eliminar archivo
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <span>Arrastra y suelta un archivo aquí, o haz clic para seleccionar uno.</span>
+              )}
+            </div>
+            {!isFileUploaded && (
+              <button
+                type="button"
+                onClick={handleUpload}
+                className={`py-2 px-4 ${isUploading ? 'bg-gray-400' : 'bg-primary'} text-white rounded-lg`}
+                disabled={isUploading}
+              >
+                {isUploading ? 'Subiendo...' : 'Subir archivo'}
+              </button>
+            )}
+          </div>
           <div className="col-span-1">
             <label className="flex flex-col text-white">
               Partida:
@@ -296,65 +338,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
               />
             </label>
           </div>
-          <div className="col-span-1 flex flex-col text-white">
-            <label className="mb-4">Orden de Compra:</label>
-            <div
-              className={`mb-4 border-dashed border-2 ${dragOver ? 'border-green-500' : 'border-gray-300'} rounded-lg p-4 text-center cursor-pointer`}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              onClick={() => document.querySelector('input[type="file"]').click()}
-            >
-              <input
-                type="file"
-                onChange={handleFileChange}
-                className="hidden"
-                disabled={isFileUploaded}
-              />
-              {filePreview ? (
-                <div>
-                  <img src={filePreview} alt="Vista previa del archivo" className="mx-auto mb-4 max-h-48" />
-                  {!isFileUploaded && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveFile}
-                      className="text-red-500"
-                    >
-                      Eliminar archivo
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <span>Arrastra y suelta un archivo aquí, o haz clic para seleccionar uno.</span>
-              )}
-            </div>
-            {!isFileUploaded && (
-              <button
-                type="button"
-                onClick={handleUpload}
-                className={`py-2 px-4 ${isUploading ? 'bg-gray-400' : 'bg-primary'} text-white rounded-lg`}
-                disabled={isUploading}
-              >
-                {isUploading ? 'Subiendo...' : 'Subir archivo'}
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={handleAddActivo}
-            className="col-span-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-          >
-            Añadir Activo
-          </button>
-          <button
-            type="submit"
-            className="col-span-2 bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-dark"
-          >
-            Guardar Todo
-          </button>
-        </form>
-        {activosList.length > 0 && (
+          {activosList.length > 0 && (
           <div className="mt-8">
             <h2 className="text-2xl text-center text-white mb-4">Activos por registrar</h2>
             <ul className="list-disc list-inside text-white">
@@ -378,6 +362,22 @@ const RegisterActivos = ({ onClose, onSave }) => {
             </ul>
           </div>
         )}
+          
+          <button
+            type="button"
+            onClick={handleAddActivo}
+            className="col-span-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+          >
+            Añadir Activo
+          </button>
+          <button
+            type="submit"
+            className="col-span-1 md:col-span-2 bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-dark"
+          >
+            Guardar Todo
+          </button>
+        </form>
+        
       </div>
       <ToastContainer />
     </div>

@@ -170,7 +170,7 @@ const Header = () => {
           menuButton={
             <MenuButton className="flex items-center gap-x-2 hover:bg-secondary-100 p-2 rounded-lg transition-colors">
               <img
-                src="../src/assets/logo_emi.png"
+                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad"
                 className="w-12 h-12 object-cover rounded-full"
               />
               <span className="text-primary">{nombre} {apellido}</span>
@@ -189,7 +189,7 @@ const Header = () => {
               className="rounded-lg transition-colors text-gray-300 hover:bg-secondary-100 flex items-center gap-x-4 py-2 px-6 flex-1"
             >
               <img
-                src="../src/assets/logo_emi.png"
+                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad"
                 className="w-8 h-8 object-cover rounded-full"
               />
               <div className="flex flex-col text-sm">
