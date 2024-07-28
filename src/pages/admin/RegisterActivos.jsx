@@ -184,6 +184,34 @@ const RegisterActivos = ({ onClose, onSave }) => {
     onClose();
   };
 
+  const handleCapturePhoto = async (e) => {
+    const file = e.target.files[0];
+    setSelectedFile(file);
+    setFilePreview(URL.createObjectURL(file));
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsUploading(true);
+
+    try {
+      const response = await axios.post(`${apiUrl}/upload`, formData);
+      toast.success('Foto subida exitosamente');
+      setActivo(prevState => ({
+        ...prevState,
+        ordenCompra: response.data.url
+      }));
+      setIsFileUploaded(true);
+      setSelectedFile(null);
+      setFilePreview(response.data.url);
+    } catch (error) {
+      console.error('Error al subir la foto:', error);
+      toast.error(error.response?.data?.message || 'Ocurrió un error al subir la foto.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-center p-4">
       <div className="relative bg-secondary-100 p-7 rounded-3xl shadow-3xl w-full lg:w-[800px] xl:w-[1000px] overflow-y-auto max-h-[80vh]">
@@ -198,7 +226,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
           Registrar <span className="text-primary">Activo</span>
         </h1>
         <form className="grid grid-cols-1 md:grid-cols-3 gap-6" onSubmit={handleSubmit}>
-        <div className="col-span-1 flex flex-col text-white">
+          <div className="col-span-1 flex flex-col text-white">
             <label className="mb-4">Orden de Compra:</label>
             <div
               className={`mb-4 border-dashed border-2 ${dragOver ? 'border-green-500' : 'border-gray-300'} rounded-lg p-4 text-center cursor-pointer`}
@@ -240,6 +268,25 @@ const RegisterActivos = ({ onClose, onSave }) => {
               >
                 {isUploading ? 'Subiendo...' : 'Subir archivo'}
               </button>
+            )}
+            {window.innerWidth <= 768 && (
+              <div className="flex flex-col text-white mt-4">
+                <label className="mb-4">Capturar Foto:</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleCapturePhoto}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => document.querySelector('input[accept="image/*"]').click()}
+                  className="mt-2 py-2 px-4 bg-primary text-white rounded-lg"
+                >
+                  Capturar Foto
+                </button>
+              </div>
             )}
           </div>
           <div className="col-span-1">
@@ -339,7 +386,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
             </label>
           </div>
           {activosList.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-8 col-span-1 md:col-span-3">
             <h2 className="text-2xl text-center text-white mb-4">Activos por registrar</h2>
             <ul className="list-disc list-inside text-white">
               {activosList.map((activo, index) => (
