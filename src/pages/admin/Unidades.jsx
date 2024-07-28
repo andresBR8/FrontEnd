@@ -8,25 +8,6 @@ import { io } from 'socket.io-client';
 
 Modal.setAppElement('#root');
 
-const customStyles = {
-  content: {
-    top: '50%',
-    left: '50%',
-    right: 'auto',
-    bottom: 'auto',
-    marginRight: '-50%',
-    transform: 'translate(-50%, -50%)',
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
-    borderRadius: '50px',
-    padding: '2px',
-    width: '75%',
-    maxWidth: '900px'
-  },
-  overlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.75)'
-  }
-};
-
 const Personal = () => {
   const [unidades, setUnidades] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,8 +15,43 @@ const Personal = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const apiUrl = import.meta.env.VITE_API_URL;
-
   const itemsPerPage = 10;
+
+  const [modalStyles, setModalStyles] = useState({
+    content: {
+      top: '50%',
+      left: '50%',
+      right: 'auto',
+      bottom: 'auto',
+      marginRight: '-50%',
+      transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)',
+      backgroundColor: 'rgba(255, 255, 255, 0.35)',
+      borderRadius: '50px',
+      padding: '2px',
+      width: '90%',
+      maxWidth: '900px',
+    },
+    overlay: {
+      backgroundColor: 'rgba(0, 0, 0, 0.75)'
+    }
+  });
+
+  const updateModalStyles = () => {
+    setModalStyles(prevStyles => ({
+      ...prevStyles,
+      content: {
+        ...prevStyles.content,
+        transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
+      }
+    }));
+  };
+
+  useEffect(() => {
+    window.addEventListener('resize', updateModalStyles);
+    return () => {
+      window.removeEventListener('resize', updateModalStyles);
+    };
+  }, []);
 
   const fetchUnidades = useCallback(async () => {
     try {
@@ -125,8 +141,8 @@ const Personal = () => {
   };
 
   return (
-    <div className="p-4">
-      <div className="flex flex-col lg:flex-row justify-between items-center mb-10 space-y-4 lg:space-y-0">
+    <div className="p-4 px-0 lg:px-0">
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-8 space-y-4 lg:space-y-3">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Personal</h1>
         <input 
           type="text" 
@@ -139,7 +155,7 @@ const Personal = () => {
           Agregar Personal
         </button>
       </div>
-      <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} style={customStyles}>
+      <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} style={modalStyles}>
         <RegisterUnidades unidad={selectedUnidad} onClose={() => setIsModalOpen(false)} onSave={(data) => {
           const method = data.id ? 'patch' : 'post';
           const url = `${apiUrl}/personal/${data.id ? data.id : ''}`;
@@ -161,7 +177,7 @@ const Personal = () => {
             });
         }} />
       </Modal>
-      <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
+      <div className="overflow-x-auto relative shadow-md sm:rounded-lg mt-4 ">
         <table className="w-full text-sm text-left text-emi_azul">
           <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
             <tr>

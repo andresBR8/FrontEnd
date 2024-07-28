@@ -131,8 +131,8 @@ const Usuarios = () => {
   }, []);
 
   return (
-    <div className="p-4">
-      <div className="flex flex-col lg:flex-row justify-between items-center mb-10 space-y-4 lg:space-y-0">
+    <div className="p-4 px-0 lg:px-0" >
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-8 space-y-4 lg:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Usuarios</h1>
         <button onClick={handleAdd} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
           Agregar Usuario
