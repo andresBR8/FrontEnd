@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Swal from 'sweetalert2';
-import { RiCheckboxBlankLine, RiCheckboxLine, RiCheckboxMultipleLine, RiSearchLine, RiDownloadLine } from "react-icons/ri";
+import { RiCheckboxBlankLine, RiCheckboxMultipleLine, RiSearchLine, RiDownloadLine } from "react-icons/ri";
 import axios from 'axios';
 import { Bar } from 'react-chartjs-2';
 import jsPDF from 'jspdf';
@@ -174,8 +174,8 @@ const Depreciation = () => {
   };
 
   return (
-    <div className="flex flex-wrap justify-center p-4">
-      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl m-4 flex-grow lg:w-1/2">
+    <div className="p-4 flex flex-col lg:flex-row justify-between">
+      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl lg:w-2/5">
         <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-emi_amarillo mb-8">
           Depreciar <span className="text-white">Activos</span>
         </h1>
@@ -198,7 +198,7 @@ const Depreciation = () => {
         </div>
         <div className="mb-4">
           <h3 className="text-lg text-emi_amarillo font-bold mb-2">Seleccionar Activos</h3>
-          <div className="max-h-60 overflow-auto">
+          <div className="max-h-60 overflow-auto bg-white p-4 rounded-lg">
             {filteredActivos.map(modelo => (
               <div key={modelo.id} className="mb-4 border-b pb-4">
                 <div className="flex justify-between items-center">
@@ -243,8 +243,11 @@ const Depreciation = () => {
           Exportar Excel
         </button>
       </div>
-      <div className="w-full mt-4">
-        <Bar data={data} options={options} />
+      <div className="bg-white p-8 rounded-3xl shadow-2xl lg:w-3/5 mt-4 lg:mt-0">
+        <h2 className="text-2xl text-center font-bold text-emi_amarillo mb-4">Depreciaciones Actuales</h2>
+        <div className="w-full h-96">
+          <Bar data={data} options={options} />
+        </div>
       </div>
       <ToastContainer />
     </div>

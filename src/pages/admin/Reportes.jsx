@@ -272,9 +272,9 @@ const Reportes = () => {
   return (
     <div className="p-4">
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 space-y-4 md:space-y-0">
-        <h1 className="text-2xl font-bold">Reportes de Gestión de Activos</h1>
+        <h1 className="text-2xl font-bold text-emi_azul">Reportes de Gestión de Activos</h1>
         <div className="flex space-x-4">
-          <select value={reportType} onChange={handleReportTypeChange} className="text-sm p-2 border-2 rounded-lg">
+          <select value={reportType} onChange={handleReportTypeChange} className="text-sm p-2 border-2 rounded-lg bg-white text-emi_azul">
             <option value="activos-por-modelo">Activos por Modelo</option>
             <option value="activos-por-partida">Activos por Partida</option>
             <option value="depreciaciones-por-rango-fechas">Depreciaciones por Rango de Fechas</option>
@@ -282,7 +282,7 @@ const Reportes = () => {
             <option value="mantenimientos-por-rango-fechas">Mantenimientos por Rango de Fechas</option>
             <option value="activos-por-estado">Activos por Estado</option>
           </select>
-          <select value={chartType} onChange={handleChartTypeChange} className="text-sm p-2 border-2 rounded-lg">
+          <select value={chartType} onChange={handleChartTypeChange} className="text-sm p-2 border-2 rounded-lg bg-white text-emi_azul">
             <option value="bar">Bar</option>
             <option value="pie">Pie</option>
           </select>
@@ -293,13 +293,13 @@ const Reportes = () => {
           <div className="w-full md:w-1/3">
             <input
               type="text"
-              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
+              className="py-2 pl-4 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
               placeholder="Buscar modelo de activo..."
               value={filtroModelo}
               onChange={handleFiltroModeloChange}
             />
             <select
-              className="mt-2 py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black w-full"
+              className="mt-2 py-2 pl-4 pr-4 bg-white outline-none rounded-lg text-emi_azul w-full"
               value={selectedModelo}
               onChange={(e) => setSelectedModelo(e.target.value)}
             >
@@ -313,7 +313,7 @@ const Reportes = () => {
         {reportType === 'activos-por-partida' && (
           <div className="w-full md:w-1/3">
             <select
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black w-full"
+              className="py-2 pl-4 pr-4 bg-white outline-none rounded-lg text-emi_azul w-full"
               value={selectedPartida}
               onChange={(e) => setSelectedPartida(e.target.value)}
             >
@@ -325,25 +325,25 @@ const Reportes = () => {
           </div>
         )}
         {reportType.includes('rango-fechas') && (
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 w-full md:w-1/2">
             <input
               type="date"
               value={fechaInicio}
               onChange={(e) => setFechaInicio(e.target.value)}
-              className="text-sm p-2 border-2 rounded-lg"
+              className="text-sm p-2 border-2 rounded-lg bg-white text-emi_azul w-full"
             />
             <input
               type="date"
               value={fechaFin}
               onChange={(e) => setFechaFin(e.target.value)}
-              className="text-sm p-2 border-2 rounded-lg"
+              className="text-sm p-2 border-2 rounded-lg bg-white text-emi_azul w-full"
             />
           </div>
         )}
         {reportType === 'activos-por-estado' && (
           <div className="w-full md:w-1/3">
             <select
-              className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black w-full"
+              className="py-2 pl-4 pr-4 bg-white outline-none rounded-lg text-emi_azul w-full"
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
             >
@@ -354,15 +354,21 @@ const Reportes = () => {
             </select>
           </div>
         )}
-        <button onClick={handleExportCSV} className="bg-blue-500 text-white py-2 px-4 rounded-lg">Exportar CSV</button>
-        <button onClick={handleExportPDF} className="bg-blue-500 text-white py-2 px-4 rounded-lg">Exportar PDF</button>
+        <button onClick={handleExportCSV} className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Exportar CSV</button>
+        <button onClick={handleExportPDF} className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Exportar PDF</button>
       </div>
       <div className="mb-10">
-        {chartData ? <ChartComponent data={chartData} /> : <p>No hay datos disponibles para este reporte.</p>}
+        {chartData ? (
+          <div className="max-w-1xl mx-auto">
+            <ChartComponent data={chartData} />
+          </div>
+        ) : (
+          <p>No hay datos disponibles para este reporte.</p>
+        )}
       </div>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
-        <table className="w-full text-sm text-left">
-          <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+        <table className="w-full text-sm text-left text-emi_azul">
+          <thead className="text-xs uppercase bg-emi_azul text-emi_amarillo">
             <tr>
               <th scope="col" className="py-3 px-6">ID</th>
               <th scope="col" className="py-3 px-6">Nombre</th>
@@ -374,7 +380,7 @@ const Reportes = () => {
           <tbody>
             {reportData && reportData.length > 0 ? (
               reportData.map((item) => (
-                <tr key={item.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                <tr key={item.id} className="bg-white border-b dark:bg- dark:border-gray-700">
                   <td className="py-4 px-6">{item.id}</td>
                   <td className="py-4 px-6">{item.activoModelo.nombre}</td>
                   <td className="py-4 px-6">{item.activoModelo.descripcion}</td>

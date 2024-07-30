@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Swal from 'sweetalert2';
-import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiRefreshLine, RiEyeLine } from "react-icons/ri";
+import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiRefreshLine, RiEyeLine, RiQrCodeLine } from "react-icons/ri";
 import RegisterActivos from "./RegisterActivos";
 import Modal from 'react-modal';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
+import { QrReader } from 'react-qr-reader';
 
 Modal.setAppElement('#root');
 
@@ -17,14 +18,14 @@ const estilosPersonalizados = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-50%, -50%)',
+    transform: 'translate(-35%, -50%)',
     backgroundColor: 'rgba(255, 255, 255, 0.35)',
     borderRadius: '50px',
     padding: '2px',
     width: '90%',
     maxWidth: '1000px',
-    overflow: 'auto', // Habilitar el desplazamiento
-    maxHeight: '90vh', // Limitar la altura máxima para evitar desbordamientos
+    overflow: 'auto',
+    maxHeight: '90vh',
   },
   overlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.75)'
@@ -35,6 +36,7 @@ const Activos = () => {
   const [activos, setActivos] = useState([]);
   const [unidades, setUnidades] = useState({});
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [qrModalAbierto, setQrModalAbierto] = useState(false);
   const [activoSeleccionado, setActivoSeleccionado] = useState(null);
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [tipoOrden, setTipoOrden] = useState('');
@@ -168,6 +170,25 @@ const Activos = () => {
     navigate(`/seguimiento/${id}`);
   };
 
+  const handleError = (error) => {
+    console.error(error);
+    toast.error('Error al escanear el código QR.');
+  };
+
+  const handleScan = (data) => {
+    if (data) {
+      const codigo = data.split(' ')[0];
+      const activo = activos.find(a => a.codigoAnterior === codigo || a.codigoNuevo === codigo);
+      if (activo) {
+        setActivoSeleccionado(activo);
+        setQrModalAbierto(false);
+        toast.success('Activo encontrado.');
+      } else {
+        toast.error('No se encontró un activo con ese código.');
+      }
+    }
+  };
+
   const indexOfLastActivo = paginaActual * activosPorPagina;
   const indexOfFirstActivo = indexOfLastActivo - activosPorPagina;
   const activosFiltrados = activos.filter(activo => activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase()));
@@ -179,19 +200,34 @@ const Activos = () => {
     <div className="p-4 px-0 lg:px-0">
       <div className="flex flex-col lg:flex-row justify-between items-center mb-8 space-y-3 lg:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Activos</h1>
-        <input 
-          type="text" 
-          placeholder="Buscar por detalle..." 
-          value={terminoBusqueda} 
-          onChange={e => setTerminoBusqueda(e.target.value)} 
-          className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
-        />
+        <div className="flex items-center space-x-2">
+          <input 
+            type="text" 
+            placeholder="Buscar por detalle..." 
+            value={terminoBusqueda} 
+            onChange={e => setTerminoBusqueda(e.target.value)} 
+            className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
+          />
+          <button onClick={() => setQrModalAbierto(true)} className="bg-emi_azul text-emi_amarillo p-2 rounded-lg hover:bg-black transition-colors">
+            <RiQrCodeLine size="1.5em" />
+          </button>
+        </div>
         <button onClick={agregarActivo} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
           Agregar Activos
         </button>
       </div>
       <Modal isOpen={modalAbierto} onRequestClose={() => setModalAbierto(false)} style={estilosPersonalizados}>
         <RegisterActivos activo={activoSeleccionado} onClose={() => setModalAbierto(false)} onSave={guardarActivo} />
+      </Modal>
+      <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
+        <div className="p-4">
+          <QrReader
+            delay={300}
+            onError={handleError}
+            onScan={handleScan}
+            style={{ width: '100%' }}
+          />
+        </div>
       </Modal>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-emi_azul">

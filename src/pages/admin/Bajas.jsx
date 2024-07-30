@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import axios from 'axios';
-import { DataGrid } from '@mui/x-data-grid';
 import { Button, Modal, TextField, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { RiAddLine, RiDeleteBinLine, RiDownloadLine } from 'react-icons/ri';
+import { RiAddLine, RiDeleteBinLine, RiDownloadLine, RiSearchLine } from 'react-icons/ri';
 import Swal from 'sweetalert2';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -14,7 +13,8 @@ import * as XLSX from 'xlsx';
 
 const Baja = () => {
   const [bajas, setBajas] = useState([]);
-  const [assets, setAssets] = useState([]);
+  const [activos, setActivos] = useState([]);
+  const [filteredActivos, setFilteredActivos] = useState([]);
   const [newBaja, setNewBaja] = useState({
     fkActivoUnidad: '',
     fecha: new Date(),
@@ -22,6 +22,7 @@ const Baja = () => {
   });
   const [openModal, setOpenModal] = useState(false);
   const [editBaja, setEditBaja] = useState(null);
+  const [filtroModelo, setFiltroModelo] = useState('');
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -37,7 +38,8 @@ const Baja = () => {
     const fetchAssets = async () => {
       try {
         const response = await axios.get(`${apiUrl}/activo-unidad`);
-        setAssets(response.data.data);
+        setActivos(response.data.data);
+        setFilteredActivos(response.data.data);
       } catch (error) {
         handleError(error, "Error al obtener los activos.");
       }
@@ -88,12 +90,23 @@ const Baja = () => {
   };
 
   const handleDeleteBaja = async (id) => {
-    try {
-      await axios.delete(`${apiUrl}/baja/${id}`);
-      setBajas(bajas.filter(b => b.id !== id));
-      toast.success("Baja eliminada correctamente.");
-    } catch (error) {
-      handleError(error, "Error al eliminar la baja.");
+    const result = await Swal.fire({
+      title: '¿Está seguro?',
+      text: "Se eliminará la baja seleccionada.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await axios.delete(`${apiUrl}/baja/${id}`);
+        setBajas(bajas.filter(b => b.id !== id));
+        toast.success("Baja eliminada correctamente.");
+      } catch (error) {
+        handleError(error, "Error al eliminar la baja.");
+      }
     }
   };
 
@@ -106,7 +119,7 @@ const Baja = () => {
         baja.id,
         new Date(baja.fecha).toLocaleDateString(),
         baja.motivo,
-        baja.activoUnidad.codigo
+        baja.activoUnidad?.codigo || 'N/A'
       ])
     });
     doc.save('reporte_bajas.pdf');
@@ -117,11 +130,16 @@ const Baja = () => {
       ID: baja.id,
       Fecha: new Date(baja.fecha).toLocaleDateString(),
       Motivo: baja.motivo,
-      Activo: baja.activoUnidad.codigo
+      Activo: baja.activoUnidad?.codigo || 'N/A'
     })));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Bajas');
     XLSX.writeFile(workbook, 'reporte_bajas.xlsx');
+  };
+
+  const handleFiltroModeloChange = (e) => {
+    setFiltroModelo(e.target.value);
+    setFilteredActivos(activos.filter(modelo => modelo.codigo.toLowerCase().includes(e.target.value.toLowerCase())));
   };
 
   const handleError = (error, message) => {
@@ -139,28 +157,6 @@ const Baja = () => {
     }
   };
 
-  const columns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'fecha', headerName: 'Fecha', width: 150, valueGetter: (params) => new Date(params.row.fecha).toLocaleDateString() },
-    { field: 'motivo', headerName: 'Motivo', width: 250 },
-    { field: 'activoUnidad', headerName: 'Activo', width: 150, valueGetter: (params) => params.row.activoUnidad.codigo },
-    {
-      field: 'actions',
-      headerName: 'Acciones',
-      width: 150,
-      renderCell: (params) => (
-        <div className="flex gap-2">
-          <Button variant="contained" color="primary" onClick={() => handleEditBaja(params.row.id)}>
-            <RiAddLine />
-          </Button>
-          <Button variant="contained" color="secondary" onClick={() => handleDeleteBaja(params.row.id)}>
-            <RiDeleteBinLine />
-          </Button>
-        </div>
-      )
-    }
-  ];
-
   return (
     <div className="min-h-screen p-4 flex flex-col items-center">
       <div className="bg-secondary-100 p-8 rounded-xl shadow-2xl w-full lg:w-3/4">
@@ -168,24 +164,27 @@ const Baja = () => {
           Gestión de Bajas
         </h1>
         <form className="mb-8 flex flex-col gap-4" onSubmit={handleAddBaja}>
-          <FormControl variant="outlined" fullWidth required>
-            <InputLabel>Unidad de Activo</InputLabel>
-            <Select
-              name="fkActivoUnidad"
-              value={newBaja.fkActivoUnidad}
-              onChange={handleInputChange}
-              label="Unidad de Activo"
-            >
-              <MenuItem value="">
-                <em>Seleccione Unidad de Activo</em>
-              </MenuItem>
-              {assets.map(asset => (
-                <MenuItem key={asset.id} value={asset.id}>
+          <div className="relative mb-4">
+            <RiSearchLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
+            <input 
+              type="text" 
+              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
+              placeholder="Buscar activo..." 
+              value={filtroModelo} 
+              onChange={handleFiltroModeloChange} 
+            />
+            <div className="absolute w-full mt-1 z-10 bg-white shadow-md max-h-60 overflow-auto rounded-lg">
+              {filteredActivos.map(asset => (
+                <div 
+                  key={asset.id} 
+                  className="text-emi_azul p-2 cursor-pointer hover:bg-gray-200"
+                  onClick={() => setNewBaja({ ...newBaja, fkActivoUnidad: asset.id })}
+                >
                   {asset.codigo} - {asset.activoModelo.nombre}
-                </MenuItem>
+                </div>
               ))}
-            </Select>
-          </FormControl>
+            </div>
+          </div>
           <DatePicker
             selected={newBaja.fecha}
             onChange={(date) => setNewBaja({ ...newBaja, fecha: date })}
@@ -206,7 +205,7 @@ const Baja = () => {
             type="submit"
             variant="contained"
             color="primary"
-            className="uppercase font-bold text-sm w-full py-3 px-4 mt-4"
+            className="uppercase font-bold text-sm w-full py-3 px-4 mt-4 bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
             startIcon={<RiAddLine />}
           >
             Agregar Baja
@@ -218,6 +217,7 @@ const Baja = () => {
             variant="contained"
             color="primary"
             startIcon={<RiDownloadLine />}
+            className="bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
           >
             Exportar PDF
           </Button>
@@ -226,12 +226,47 @@ const Baja = () => {
             variant="contained"
             color="secondary"
             startIcon={<RiDownloadLine />}
+            className="bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
           >
             Exportar Excel
           </Button>
         </div>
-        <div style={{ height: 400, width: '100%' }}>
-          <DataGrid rows={bajas} columns={columns} pageSize={5} />
+        <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+              <tr>
+                <th scope="col" className="py-3 px-6">ID</th>
+                <th scope="col" className="py-3 px-6">Fecha</th>
+                <th scope="col" className="py-3 px-6">Motivo</th>
+                <th scope="col" className="py-3 px-6">Activo</th>
+                <th scope="col" className="py-3 px-6">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bajas.length > 0 ? (
+                bajas.map((baja) => (
+                  <tr key={baja.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
+                    <td className="py-1 px-2 lg:px-6">{baja.id}</td>
+                    <td className="py-1 px-2 lg:px-6">{new Date(baja.fecha).toLocaleDateString()}</td>
+                    <td className="py-1 px-2 lg:px-6">{baja.motivo}</td>
+                    <td className="py-1 px-2 lg:px-6">{baja.activoUnidad?.codigo || 'N/A'}</td>
+                    <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
+                      <Button variant="contained" color="primary" onClick={() => handleEditBaja(baja.id)}>
+                        <RiAddLine />
+                      </Button>
+                      <Button variant="contained" color="secondary" onClick={() => handleDeleteBaja(baja.id)}>
+                        <RiDeleteBinLine />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="text-center py-4">No hay datos disponibles</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
         <ToastContainer />
       </div>
@@ -254,7 +289,7 @@ const Baja = () => {
                   <MenuItem value="">
                     <em>Seleccione Unidad de Activo</em>
                   </MenuItem>
-                  {assets.map(asset => (
+                  {activos.map(asset => (
                     <MenuItem key={asset.id} value={asset.id}>
                       {asset.codigo} - {asset.activoModelo.nombre}
                     </MenuItem>
@@ -280,7 +315,7 @@ const Baja = () => {
               <Button
                 variant="contained"
                 color="primary"
-                className="uppercase font-bold text-sm w-full py-3 px-4 mt-4"
+                className="uppercase font-bold text-sm w-full py-3 px-4 mt-4 bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
                 onClick={handleUpdateBaja}
               >
                 Actualizar Baja
