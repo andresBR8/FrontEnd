@@ -1,15 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
-import {
-  RiEdit2Line,
-  RiDeleteBin6Line,
-  RiArrowDownSLine,
-  RiArrowUpSLine,
-  RiAddLine,
-  RiRefreshLine,
-  RiEyeLine,
-  RiQrScanLine,
-} from "react-icons/ri";
+import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiRefreshLine, RiEyeLine, RiQrScan2Line } from "react-icons/ri";
 import RegisterActivos from "./RegisterActivos";
 import Modal from "react-modal";
 import axios from "axios";
@@ -27,14 +18,14 @@ const estilosPersonalizados = {
     right: "auto",
     bottom: "auto",
     marginRight: "-50%",
-    transform: "translate(-35%, -50%)",
+    transform: "translate(-50%, -50%)",
     backgroundColor: "rgba(255, 255, 255, 0.35)",
     borderRadius: "50px",
     padding: "2px",
     width: "90%",
     maxWidth: "1000px",
-    overflow: "auto",
-    maxHeight: "90vh",
+    overflow: "auto", // Habilitar el desplazamiento
+    maxHeight: "90vh", // Limitar la altura máxima para evitar desbordamientos
   },
   overlay: {
     backgroundColor: "rgba(0, 0, 0, 0.75)",
@@ -56,43 +47,45 @@ const Activos = () => {
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
-  const obtenerActivos = useCallback(async () => {
-    try {
-      const response = await axios.get(`${apiUrl}/activo-modelo`);
-      setActivos(response.data.data);
-    } catch (error) {
-      toast.error("Error al obtener activos.");
-      console.error("Error consulta activos:", error);
-    }
+  const obtenerActivos = useCallback(() => {
+    axios
+      .get(`${apiUrl}/activo-modelo`)
+      .then((response) => {
+        setActivos(response.data.data);
+      })
+      .catch((error) => {
+        console.error("Error consulta activos:", error);
+      });
   }, [apiUrl]);
 
   useEffect(() => {
     obtenerActivos();
   }, [obtenerActivos]);
 
-  const guardarActivo = async (activo) => {
-    try {
-      const metodo = activo.id ? "put" : "post";
-      const url = `${apiUrl}/activo-modelo/${activo.id ? activo.id : ""}`;
-      const data = {
-        fkPartida: activo.fkPartida,
-        fechaIngreso: new Date(activo.fechaIngreso).toISOString(),
-        costo: activo.costo,
-        descripcion: activo.descripcion,
-        estado: activo.estado,
-        codigoAnterior: activo.codigoAnterior,
-        codigoNuevo: activo.codigoNuevo,
-        ordenCompra: activo.ordenCompra,
-      };
+  const guardarActivo = (activo) => {
+    const metodo = activo.id ? "put" : "post";
+    const url = `${apiUrl}/activo-modelo/${activo.id ? activo.id : ""}`;
+    const data = {
+      fkPartida: activo.fkPartida,
+      fechaIngreso: new Date(activo.fechaIngreso).toISOString(),
+      costo: activo.costo,
+      descripcion: activo.descripcion,
+      estado: activo.estado,
+      codigoAnterior: activo.codigoAnterior,
+      codigoNuevo: activo.codigoNuevo,
+      ordenCompra: activo.ordenCompra,
+    };
 
-      await axios({ method: metodo, url, data });
-      setModalAbierto(false);
-      toast.success(`El activo ha sido ${activo.id ? "actualizado" : "registrado"} con éxito.`);
-      obtenerActivos();
-    } catch (error) {
-      console.error("Error al crear o actualizar el activo:", error);
-      toast.error(`No se pudo ${activo.id ? "actualizar" : "registrar"} el activo.`);
-    }
+    axios({ method: metodo, url, data })
+      .then((response) => {
+        setModalAbierto(false);
+        toast.success(`El activo ha sido ${activo.id ? "actualizado" : "registrado"} con éxito.`);
+        obtenerActivos();
+      })
+      .catch((error) => {
+        console.error("Error al crear o actualizar el activo:", error);
+        toast.error(`No se pudo ${activo.id ? "actualizar" : "registrar"} el activo.`);
+      });
   };
 
   const editarActivo = (activo) => {
@@ -146,9 +139,7 @@ const Activos = () => {
     setActivos((prevActivos) =>
       [...prevActivos].sort((a, b) => {
         if (campo === "fechaIngreso") {
-          return esAsc
-            ? new Date(a[campo]) - new Date(b[campo])
-            : new Date(b[campo]) - new Date(a[campo]);
+          return esAsc ? new Date(a[campo]) - new Date(b[campo]) : new Date(b[campo]) - new Date(a[campo]);
         } else if (typeof a[campo] === "string") {
           return esAsc ? a[campo].localeCompare(b[campo]) : b[campo].localeCompare(a[campo]);
         } else {
@@ -158,16 +149,18 @@ const Activos = () => {
     );
   };
 
-  const manejarUnidades = async (id) => {
+  const manejarUnidades = (id) => {
     if (unidades[id]) {
       setUnidades((prev) => ({ ...prev, [id]: null }));
     } else {
-      try {
-        const response = await axios.get(`${apiUrl}/activo-modelo/${id}`);
-        setUnidades((prev) => ({ ...prev, [id]: response.data.data.activoUnidades }));
-      } catch (error) {
-        console.error("Error al obtener unidades:", error);
-      }
+      axios
+        .get(`${apiUrl}/activo-modelo/${id}`)
+        .then((response) => {
+          setUnidades((prev) => ({ ...prev, [id]: response.data.data.activoUnidades }));
+        })
+        .catch((error) => {
+          console.error("Error al obtener unidades:", error);
+        });
     }
   };
 
@@ -180,27 +173,25 @@ const Activos = () => {
     navigate(`/seguimiento/${id}`);
   };
 
-  const handleError = (err) => {
-    console.error(err);
-  };
-
-  const handleScan = (data) => {
-    if (data) {
-      const codigo = data.split(" ")[0];
-      const activo = activos.find((a) => a.codigoAnterior === codigo || a.codigoNuevo === codigo);
-      if (activo) {
-        setTerminoBusqueda(activo.descripcion);
-      } else {
-        toast.error("Activo no encontrado.");
-      }
+  const handleScan = (result) => {
+    if (result?.text) {
+      const codigo = result.text.split(" ")[0]; // Extrae el código del QR
+      setTerminoBusqueda(codigo);
       setQrModalAbierto(false);
     }
+  };
+
+  const handleError = (error) => {
+    console.error("Error al escanear el QR:", error);
+    toast.error("Error al escanear el QR.");
   };
 
   const indexOfLastActivo = paginaActual * activosPorPagina;
   const indexOfFirstActivo = indexOfLastActivo - activosPorPagina;
   const activosFiltrados = activos.filter((activo) =>
-    activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase())
+    activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+    activo.codigoAnterior?.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+    activo.codigoNuevo?.toLowerCase().includes(terminoBusqueda.toLowerCase())
   );
   const activosPaginados = activosFiltrados.slice(indexOfFirstActivo, indexOfLastActivo);
 
@@ -210,7 +201,7 @@ const Activos = () => {
     <div className="p-4 px-0 lg:px-0">
       <div className="flex flex-col lg:flex-row justify-between items-center mb-8 space-y-3 lg:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Activos</h1>
-        <div className="flex space-x-2">
+        <div className="flex items-center">
           <input
             type="text"
             placeholder="Buscar por detalle..."
@@ -218,17 +209,11 @@ const Activos = () => {
             onChange={(e) => setTerminoBusqueda(e.target.value)}
             className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
           />
-          <button
-            onClick={() => setQrModalAbierto(true)}
-            className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
-          >
-            <RiQrScanLine />
+          <button onClick={() => setQrModalAbierto(true)} className="ml-2 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
+            <RiQrScan2Line />
           </button>
         </div>
-        <button
-          onClick={agregarActivo}
-          className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
-        >
+        <button onClick={agregarActivo} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
           Agregar Activos
         </button>
       </div>
@@ -236,14 +221,19 @@ const Activos = () => {
         <RegisterActivos activo={activoSeleccionado} onClose={() => setModalAbierto(false)} onSave={guardarActivo} />
       </Modal>
       <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
-        <div className="flex justify-center items-center">
+        <div className="flex flex-col items-center p-4">
+          <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
           <QrReader
-            delay={300}
-            facingMode="environment"
-            onError={handleError}
-            onScan={handleScan}
+            onResult={handleScan}
+            constraints={{ facingMode: 'environment' }}
             style={{ width: "100%" }}
           />
+          <button
+            onClick={() => setQrModalAbierto(false)}
+            className="mt-4 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
+          >
+            Cerrar
+          </button>
         </div>
       </Modal>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
@@ -305,10 +295,7 @@ const Activos = () => {
                     </button>
                   </td>
                   <td className="py-1 px-2 lg:px-6 text-right">
-                    <button
-                      onClick={() => manejarUnidades(activo.id)}
-                      className="font-medium text-emi_azul dark:text-emi_amarillo hover:underline"
-                    >
+                    <button onClick={() => manejarUnidades(activo.id)} className="font-medium text-emi_azul dark:text-emi_amarillo hover:underline">
                       {unidades[activo.id] ? <RiArrowUpSLine size="1.5em" /> : <RiArrowDownSLine size="1.5em" />}
                     </button>
                   </td>
@@ -326,10 +313,7 @@ const Activos = () => {
                         </thead>
                         <tbody>
                           {unidades[activo.id].map((unidad) => (
-                            <tr
-                              key={unidad.id}
-                              className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900"
-                            >
+                            <tr key={unidad.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
                               <td className="py-1 px-2 lg:px-6">{unidad.codigo}</td>
                               <td className="py-1 px-2 lg:px-6">{unidad.asignado ? "Sí" : "No"}</td>
                               <td className="py-1 px-2 lg:px-6 text-right space-x-4">
@@ -349,10 +333,7 @@ const Activos = () => {
                                     </span>
                                   )}
                                 </button>
-                                <button
-                                  onClick={() => manejarSeguimiento(unidad.id)}
-                                  className="font-medium text-blue-500 hover:underline"
-                                >
+                                <button onClick={() => manejarSeguimiento(unidad.id)} className="font-medium text-blue-500 hover:underline">
                                   <span className="flex items-center">
                                     <RiEyeLine size="1.5em" className="mr-1" />
                                     Seguimiento
@@ -375,9 +356,7 @@ const Activos = () => {
             <button
               key={index}
               onClick={() => paginacion(index + 1)}
-              className={`mx-1 px-3 py-1 rounded-lg ${
-                paginaActual === index + 1 ? "bg-emi_azul text-white" : "bg-white text-emi_azul border border-emi_azul"
-              }`}
+              className={`mx-1 px-3 py-1 rounded-lg ${paginaActual === index + 1 ? "bg-emi_azul text-white" : "bg-white text-emi_azul border border-emi_azul"}`}
             >
               {index + 1}
             </button>
