@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
-import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiRefreshLine, RiEyeLine, RiQrScan2Line } from "react-icons/ri";
+import {
+  RiEdit2Line,
+  RiDeleteBin6Line,
+  RiArrowDownSLine,
+  RiArrowUpSLine,
+  RiAddLine,
+  RiRefreshLine,
+  RiEyeLine,
+  RiQrScan2Line,
+} from "react-icons/ri";
 import RegisterActivos from "./RegisterActivos";
 import Modal from "react-modal";
 import axios from "axios";
@@ -175,9 +184,14 @@ const Activos = () => {
 
   const handleScan = (result) => {
     if (result?.text) {
-      const codigo = result.text.split(" ")[0]; // Extrae el código del QR
-      setTerminoBusqueda(codigo);
-      setQrModalAbierto(false);
+      const codigo = result.text.split(" ")[0];
+      const activoEncontrado = activos.find((activo) => activo.codigoAnterior === codigo || activo.codigoNuevo === codigo);
+      if (activoEncontrado) {
+        setTerminoBusqueda(codigo);
+        setQrModalAbierto(false);
+      } else {
+        toast.error("Activo no encontrado.");
+      }
     }
   };
 
@@ -188,10 +202,11 @@ const Activos = () => {
 
   const indexOfLastActivo = paginaActual * activosPorPagina;
   const indexOfFirstActivo = indexOfLastActivo - activosPorPagina;
-  const activosFiltrados = activos.filter((activo) =>
-    activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-    activo.codigoAnterior?.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-    activo.codigoNuevo?.toLowerCase().includes(terminoBusqueda.toLowerCase())
+  const activosFiltrados = activos.filter(
+    (activo) =>
+      activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+      activo.codigoAnterior.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+      activo.codigoNuevo.toLowerCase().includes(terminoBusqueda.toLowerCase())
   );
   const activosPaginados = activosFiltrados.slice(indexOfFirstActivo, indexOfLastActivo);
 
@@ -209,7 +224,10 @@ const Activos = () => {
             onChange={(e) => setTerminoBusqueda(e.target.value)}
             className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
           />
-          <button onClick={() => setQrModalAbierto(true)} className="ml-2 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
+          <button
+            onClick={() => setQrModalAbierto(true)}
+            className="ml-2 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
+          >
             <RiQrScan2Line />
           </button>
         </div>
@@ -225,8 +243,9 @@ const Activos = () => {
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
           <QrReader
             onResult={handleScan}
-            constraints={{ facingMode: 'environment' }}
+            onError={handleError}
             style={{ width: "100%" }}
+            constraints={{ facingMode: "environment" }}
           />
           <button
             onClick={() => setQrModalAbierto(false)}
