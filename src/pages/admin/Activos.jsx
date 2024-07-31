@@ -62,6 +62,13 @@ const Activos = () => {
       .get(`${apiUrl}/activo-modelo`)
       .then((response) => {
         setActivos(response.data.data);
+        const unidadesMap = {};
+        response.data.data.forEach((modelo) => {
+          modelo.activoUnidades.forEach((unidad) => {
+            unidadesMap[unidad.codigo] = unidad;
+          });
+        });
+        setUnidades(unidadesMap);
       })
       .catch((error) => {
         console.error("Error consulta activos:", error);
@@ -187,8 +194,8 @@ const Activos = () => {
     if (data && data.text && escaneoActivo) {
       setEscaneoActivo(false); // Detener el escaneo
       const codigo = data.text.split(" ")[0];
-      const activoEncontrado = activos.find((activo) => activo.codigoAnterior === codigo || activo.codigoNuevo === codigo);
-      if (activoEncontrado) {
+      const unidadEncontrada = unidades[codigo];
+      if (unidadEncontrada) {
         setTerminoBusqueda(codigo);
         setQrModalAbierto(false);
         toast.success("Activo encontrado.");
