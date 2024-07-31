@@ -16,7 +16,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import { QrReader } from "react-qr-reader";
+import QrScanner from "react-qr-scanner"; // Cambio aquí
 
 Modal.setAppElement("#root");
 
@@ -183,10 +183,10 @@ const Activos = () => {
     navigate(`/seguimiento/${id}`);
   };
 
-  const handleScan = (result) => {
-    if (result?.text && escaneoActivo) {
+  const handleScan = (data) => {
+    if (data && data.text && escaneoActivo) {
       setEscaneoActivo(false); // Detener el escaneo
-      const codigo = result.text.split(" ")[0];
+      const codigo = data.text.split(" ")[0];
       const activoEncontrado = activos.find((activo) => activo.codigoAnterior === codigo || activo.codigoNuevo === codigo);
       if (activoEncontrado) {
         setTerminoBusqueda(codigo);
@@ -250,18 +250,12 @@ const Activos = () => {
       <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
         <div className="flex flex-col items-center p-4">
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
-          <QrReader
-            key="userQR"
-            constraints={{ facingMode: 'user' }} // Aquí se establece la cámara delantera
-            onResult={(result, error) => {
-              if (!!result) {
-                handleScan(result);
-              }
-              if (!!error) {
-                handleError(error);
-              }
-            }}
+          <QrScanner
+            delay={300}
+            onError={handleError}
+            onScan={handleScan}
             style={{ width: "100%" }}
+            facingMode="user" // Usar la cámara delantera
           />
           <div className="mt-4">
             <button
