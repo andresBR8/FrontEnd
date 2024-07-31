@@ -52,7 +52,7 @@ const Activos = () => {
   const [direccionOrden, setDireccionOrden] = useState("asc");
   const [paginaActual, setPaginaActual] = useState(1);
   const [activosPorPagina] = useState(10);
-  const [facingMode, setFacingMode] = useState("environment");
+  const [escaneoActivo, setEscaneoActivo] = useState(true); // Para controlar el estado del escaneo
   const navigate = useNavigate();
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -184,16 +184,18 @@ const Activos = () => {
   };
 
   const handleScan = (result) => {
-    if (result?.text) {
+    if (result?.text && escaneoActivo) {
+      setEscaneoActivo(false); // Detener el escaneo
       const codigo = result.text.split(" ")[0];
       const activoEncontrado = activos.find((activo) => activo.codigoAnterior === codigo || activo.codigoNuevo === codigo);
       if (activoEncontrado) {
         setTerminoBusqueda(codigo);
+        setQrModalAbierto(false);
         toast.success("Activo encontrado.");
       } else {
         toast.error("Activo no encontrado.");
+        setEscaneoActivo(true); // Reanudar el escaneo
       }
-      setQrModalAbierto(false);
     }
   };
 
@@ -227,7 +229,10 @@ const Activos = () => {
             className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
           />
           <button
-            onClick={() => setQrModalAbierto(true)}
+            onClick={() => {
+              setQrModalAbierto(true);
+              setEscaneoActivo(true); // Reanudar el escaneo al abrir el modal
+            }}
             className="ml-2 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
           >
             <RiQrScan2Line />
@@ -243,46 +248,23 @@ const Activos = () => {
       <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
         <div className="flex flex-col items-center p-4">
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
-          {facingMode === 'environment' && (
-            <QrReader
-              key="environmentQR"
-              constraints={{ facingMode: 'environment' }}
-              onResult={(result, error) => {
-                if (!!result) {
-                  handleScan(result);
-                }
-                if (!!error) {
-                  handleError(error);
-                }
-              }}
-              style={{ width: "100%" }}
-            />
-          )}
-          {facingMode === 'user' && (
-            <QrReader
-              key="userQR"
-              constraints={{ facingMode: 'user' }}
-              onResult={(result, error) => {
-                if (!!result) {
-                  handleScan(result);
-                }
-                if (!!error) {
-                  handleError(error);
-                }
-              }}
-              style={{ width: "100%" }}
-            />
-          )}
+          <QrReader
+            key="userQR"
+            constraints={{ facingMode: 'user' }} // Aquí se establece la cámara delantera
+            onResult={(result, error) => {
+              if (!!result) {
+                handleScan(result);
+              }
+              if (!!error) {
+                handleError(error);
+              }
+            }}
+            style={{ width: "100%" }}
+          />
           <div className="mt-4">
             <button
-              onClick={() => setFacingMode(facingMode === 'environment' ? 'user' : 'environment')}
-              className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
-            >
-              Cambiar Cámara
-            </button>
-            <button
               onClick={() => setQrModalAbierto(false)}
-              className="ml-4 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
+              className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
             >
               Cerrar
             </button>
