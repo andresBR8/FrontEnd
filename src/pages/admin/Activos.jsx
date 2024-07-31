@@ -53,7 +53,7 @@ const Activos = () => {
   const [paginaActual, setPaginaActual] = useState(1);
   const [activosPorPagina] = useState(10);
   const [selectedCamera, setSelectedCamera] = useState("");
-  const [cameras, setCameras] = useState([]);
+  const [facingMode, setFacingMode] = useState("environment");
   const navigate = useNavigate();
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -76,15 +76,7 @@ const Activos = () => {
   useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then((devices) => {
       const videoDevices = devices.filter((device) => device.kind === "videoinput");
-      setCameras(videoDevices);
-      const defaultCamera = videoDevices.find((device) =>
-        /front|user|front/gi.test(device.label)
-      );
-      if (defaultCamera) {
-        setSelectedCamera(defaultCamera.deviceId);
-      } else if (videoDevices.length > 0) {
-        setSelectedCamera(videoDevices[0].deviceId);
-      }
+      setSelectedCamera(videoDevices[0]?.deviceId || "");
     });
   }, []);
 
@@ -258,19 +250,50 @@ const Activos = () => {
       <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
         <div className="flex flex-col items-center p-4">
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
-          <QrReader
-            onResult={handleScan}
-            onError={handleError}
-            style={{ width: "100%" }}
-            constraints={{ facingMode: "user" }} // Aquí se establece que se debe usar la cámara delantera
-            videoId={selectedCamera}
-          />
-          <button
-            onClick={() => setQrModalAbierto(false)}
-            className="mt-4 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
-          >
-            Cerrar
-          </button>
+          {facingMode === 'environment' && (
+            <QrReader
+              key="environmentQR"
+              constraints={{ facingMode: 'environment' }}
+              onResult={(result, error) => {
+                if (!!result) {
+                  handleScan(result);
+                }
+                if (!!error) {
+                  handleError(error);
+                }
+              }}
+              style={{ width: "100%" }}
+            />
+          )}
+          {facingMode === 'user' && (
+            <QrReader
+              key="userQR"
+              constraints={{ facingMode: 'user' }}
+              onResult={(result, error) => {
+                if (!!result) {
+                  handleScan(result);
+                }
+                if (!!error) {
+                  handleError(error);
+                }
+              }}
+              style={{ width: "100%" }}
+            />
+          )}
+          <div className="mt-4">
+            <button
+              onClick={() => setFacingMode(facingMode === 'environment' ? 'user' : 'environment')}
+              className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
+            >
+              Cambiar Cámara
+            </button>
+            <button
+              onClick={() => setQrModalAbierto(false)}
+              className="ml-4 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </Modal>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
