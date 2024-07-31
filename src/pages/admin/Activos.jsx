@@ -33,8 +33,8 @@ const estilosPersonalizados = {
     padding: "2px",
     width: "90%",
     maxWidth: "1000px",
-    overflow: "auto", // Habilitar el desplazamiento
-    maxHeight: "90vh", // Limitar la altura máxima para evitar desbordamientos
+    overflow: "auto",
+    maxHeight: "90vh",
   },
   overlay: {
     backgroundColor: "rgba(0, 0, 0, 0.75)",
@@ -52,8 +52,8 @@ const Activos = () => {
   const [direccionOrden, setDireccionOrden] = useState("asc");
   const [paginaActual, setPaginaActual] = useState(1);
   const [activosPorPagina] = useState(10);
+  const [selectedCamera, setSelectedCamera] = useState("");
   const [cameras, setCameras] = useState([]);
-  const [selectedCamera, setSelectedCamera] = useState('');
   const navigate = useNavigate();
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -71,14 +71,22 @@ const Activos = () => {
 
   useEffect(() => {
     obtenerActivos();
+  }, [obtenerActivos]);
+
+  useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then((devices) => {
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      const videoDevices = devices.filter((device) => device.kind === "videoinput");
       setCameras(videoDevices);
-      if (videoDevices.length > 0) {
-        setSelectedCamera(videoDevices[0].deviceId); // Set default to the first camera
+      const defaultCamera = videoDevices.find((device) =>
+        /back|rear|environment/gi.test(device.label)
+      );
+      if (defaultCamera) {
+        setSelectedCamera(defaultCamera.deviceId);
+      } else if (videoDevices.length > 0) {
+        setSelectedCamera(videoDevices[0].deviceId);
       }
     });
-  }, [obtenerActivos]);
+  }, []);
 
   const guardarActivo = (activo) => {
     const metodo = activo.id ? "put" : "post";
@@ -250,22 +258,12 @@ const Activos = () => {
       <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
         <div className="flex flex-col items-center p-4">
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
-          <select
-            onChange={(e) => setSelectedCamera(e.target.value)}
-            value={selectedCamera}
-            className="mb-4 p-2 border rounded"
-          >
-            {cameras.map((camera, index) => (
-              <option key={index} value={camera.deviceId}>
-                {camera.label || `Camera ${index + 1}`}
-              </option>
-            ))}
-          </select>
           <QrReader
             onResult={handleScan}
             onError={handleError}
             style={{ width: "100%" }}
-            constraints={{ deviceId: selectedCamera }}
+            constraints={{ facingMode: "environment" }}
+            videoId={selectedCamera}
           />
           <button
             onClick={() => setQrModalAbierto(false)}
