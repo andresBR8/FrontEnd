@@ -201,7 +201,9 @@ const Activos = () => {
 
   const handleError = (error) => {
     console.error("Error al escanear el QR:", error);
-    toast.error("Error al escanear el QR.");
+    if (escaneoActivo) { // Evitar múltiples mensajes de error
+      toast.error("Error al escanear el QR.");
+    }
   };
 
   const indexOfLastActivo = paginaActual * activosPorPagina;
