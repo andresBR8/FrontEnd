@@ -52,7 +52,7 @@ const Activos = () => {
   const [direccionOrden, setDireccionOrden] = useState("asc");
   const [paginaActual, setPaginaActual] = useState(1);
   const [activosPorPagina] = useState(10);
-  const [escaneoActivo, setEscaneoActivo] = useState(true); // Para controlar el estado del escaneo
+  const [escaneoActivo, setEscaneoActivo] = useState(true);
   const navigate = useNavigate();
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -172,7 +172,7 @@ const Activos = () => {
 
   const manejarUnidades = (id) => {
     const unidadesDelModelo = unidades.filter((unidad) => unidad.modeloId === id);
-    setUnidades((prev) => ({ ...prev, [id]: unidadesDelModelo.length ? null : unidadesDelModelo }));
+    setUnidades((prev) => ({ ...prev, [id]: unidadesDelModelo.length ? unidadesDelModelo : [] }));
   };
 
   const manejarAsignacion = (id, asignado) => {
