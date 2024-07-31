@@ -52,7 +52,6 @@ const Activos = () => {
   const [direccionOrden, setDireccionOrden] = useState("asc");
   const [paginaActual, setPaginaActual] = useState(1);
   const [activosPorPagina] = useState(10);
-  const [selectedCamera, setSelectedCamera] = useState("");
   const [facingMode, setFacingMode] = useState("environment");
   const navigate = useNavigate();
 
@@ -72,13 +71,6 @@ const Activos = () => {
   useEffect(() => {
     obtenerActivos();
   }, [obtenerActivos]);
-
-  useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      const videoDevices = devices.filter((device) => device.kind === "videoinput");
-      setSelectedCamera(videoDevices[0]?.deviceId || "");
-    });
-  }, []);
 
   const guardarActivo = (activo) => {
     const metodo = activo.id ? "put" : "post";
@@ -197,10 +189,11 @@ const Activos = () => {
       const activoEncontrado = activos.find((activo) => activo.codigoAnterior === codigo || activo.codigoNuevo === codigo);
       if (activoEncontrado) {
         setTerminoBusqueda(codigo);
-        setQrModalAbierto(false);
+        toast.success("Activo encontrado.");
       } else {
         toast.error("Activo no encontrado.");
       }
+      setQrModalAbierto(false);
     }
   };
 
