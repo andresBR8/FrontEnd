@@ -17,6 +17,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 import QrScanner from "react-qr-scanner";
+import ReactPaginate from 'react-paginate';
 
 Modal.setAppElement("#root");
 
@@ -44,13 +45,14 @@ const estilosPersonalizados = {
 const Activos = () => {
   const [activos, setActivos] = useState([]);
   const [unidades, setUnidades] = useState([]);
+  const [unidadesDesplegadas, setUnidadesDesplegadas] = useState({});
   const [modalAbierto, setModalAbierto] = useState(false);
   const [qrModalAbierto, setQrModalAbierto] = useState(false);
   const [activoSeleccionado, setActivoSeleccionado] = useState(null);
   const [terminoBusqueda, setTerminoBusqueda] = useState("");
   const [tipoOrden, setTipoOrden] = useState("");
   const [direccionOrden, setDireccionOrden] = useState("asc");
-  const [paginaActual, setPaginaActual] = useState(1);
+  const [paginaActual, setPaginaActual] = useState(0);
   const [activosPorPagina] = useState(10);
   const [escaneoActivo, setEscaneoActivo] = useState(true);
   const navigate = useNavigate();
@@ -171,8 +173,10 @@ const Activos = () => {
   };
 
   const manejarUnidades = (id) => {
-    const unidadesDelModelo = unidades.filter((unidad) => unidad.modeloId === id);
-    setUnidades((prev) => ({ ...prev, [id]: unidadesDelModelo.length ? unidadesDelModelo : [] }));
+    setUnidadesDesplegadas((prevDesplegadas) => ({
+      ...prevDesplegadas,
+      [id]: !prevDesplegadas[id],
+    }));
   };
 
   const manejarAsignacion = (id, asignado) => {
@@ -191,6 +195,10 @@ const Activos = () => {
       const unidadEncontrada = unidades.find((unidad) => unidad.codigo === codigo);
       if (unidadEncontrada) {
         setTerminoBusqueda(codigo);
+        setUnidadesDesplegadas((prevDesplegadas) => ({
+          ...prevDesplegadas,
+          [unidadEncontrada.modeloId]: true,
+        }));
         setQrModalAbierto(false);
         toast.success("Activo encontrado.");
       } else {
@@ -207,7 +215,7 @@ const Activos = () => {
     }
   };
 
-  const indexOfLastActivo = paginaActual * activosPorPagina;
+  const indexOfLastActivo = (paginaActual + 1) * activosPorPagina;
   const indexOfFirstActivo = indexOfLastActivo - activosPorPagina;
   const activosFiltrados = activos.filter((activo) => {
     const descripcion = activo.descripcion ? activo.descripcion.toLowerCase() : "";
@@ -227,7 +235,7 @@ const Activos = () => {
   });
   const activosPaginados = activosFiltrados.slice(indexOfFirstActivo, indexOfLastActivo);
 
-  const paginacion = (numeroPagina) => setPaginaActual(numeroPagina);
+  const paginacion = ({ selected }) => setPaginaActual(selected);
 
   return (
     <div className="p-4 px-0 lg:px-0">
@@ -338,11 +346,11 @@ const Activos = () => {
                   </td>
                   <td className="py-1 px-2 lg:px-6 text-right">
                     <button onClick={() => manejarUnidades(activo.id)} className="font-medium text-emi_azul dark:text-emi_amarillo hover:underline">
-                      {unidades.some((unidad) => unidad.modeloId === activo.id) ? <RiArrowUpSLine size="1.5em" /> : <RiArrowDownSLine size="1.5em" />}
+                      {unidadesDesplegadas[activo.id] ? <RiArrowUpSLine size="1.5em" /> : <RiArrowDownSLine size="1.5em" />}
                     </button>
                   </td>
                 </tr>
-                {unidades.some((unidad) => unidad.modeloId === activo.id) && (
+                {unidadesDesplegadas[activo.id] && (
                   <tr>
                     <td colSpan="8" className="bg-gray-100 p-4">
                       <table className="w-full text-sm text-left text-emi_azul">
@@ -393,17 +401,19 @@ const Activos = () => {
             ))}
           </tbody>
         </table>
-        <div className="flex justify-center mt-4 mb-4">
-          {Array.from({ length: Math.ceil(activosFiltrados.length / activosPorPagina) }, (_, index) => (
-            <button
-              key={index}
-              onClick={() => paginacion(index + 1)}
-              className={`mx-1 px-3 py-1 rounded-lg ${paginaActual === index + 1 ? "bg-emi_azul text-white" : "bg-white text-emi_azul border border-emi_azul"}`}
-            >
-              {index + 1}
-            </button>
-          ))}
-        </div>
+        <ReactPaginate
+          previousLabel={"Anterior"}
+          nextLabel={"Siguiente"}
+          breakLabel={"..."}
+          breakClassName={"break-me"}
+          pageCount={Math.ceil(activosFiltrados.length / activosPorPagina)}
+          marginPagesDisplayed={2}
+          pageRangeDisplayed={5}
+          onPageChange={paginacion}
+          containerClassName={"pagination"}
+          subContainerClassName={"pages pagination"}
+          activeClassName={"active"}
+        />
       </div>
       <ToastContainer />
     </div>
