@@ -209,13 +209,22 @@ const Activos = () => {
 
   const indexOfLastActivo = paginaActual * activosPorPagina;
   const indexOfFirstActivo = indexOfLastActivo - activosPorPagina;
-  const activosFiltrados = activos.filter(
-    (activo) =>
-      activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-      activo.codigoAnterior.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-      activo.codigoNuevo.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-      unidades.some((unidad) => unidad.modeloId === activo.id && unidad.codigo.toLowerCase().includes(terminoBusqueda.toLowerCase()))
-  );
+  const activosFiltrados = activos.filter((activo) => {
+    const descripcion = activo.descripcion ? activo.descripcion.toLowerCase() : "";
+    const codigoAnterior = activo.codigoAnterior ? activo.codigoAnterior.toLowerCase() : "";
+    const codigoNuevo = activo.codigoNuevo ? activo.codigoNuevo.toLowerCase() : "";
+    return (
+      descripcion.includes(terminoBusqueda.toLowerCase()) ||
+      codigoAnterior.includes(terminoBusqueda.toLowerCase()) ||
+      codigoNuevo.includes(terminoBusqueda.toLowerCase()) ||
+      unidades.some(
+        (unidad) =>
+          unidad.modeloId === activo.id &&
+          unidad.codigo &&
+          unidad.codigo.toLowerCase().includes(terminoBusqueda.toLowerCase())
+      )
+    );
+  });
   const activosPaginados = activosFiltrados.slice(indexOfFirstActivo, indexOfLastActivo);
 
   const paginacion = (numeroPagina) => setPaginaActual(numeroPagina);
