@@ -52,6 +52,8 @@ const Activos = () => {
   const [direccionOrden, setDireccionOrden] = useState("asc");
   const [paginaActual, setPaginaActual] = useState(1);
   const [activosPorPagina] = useState(10);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCamera, setSelectedCamera] = useState('');
   const navigate = useNavigate();
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -69,6 +71,13 @@ const Activos = () => {
 
   useEffect(() => {
     obtenerActivos();
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      setCameras(videoDevices);
+      if (videoDevices.length > 0) {
+        setSelectedCamera(videoDevices[0].deviceId); // Set default to the first camera
+      }
+    });
   }, [obtenerActivos]);
 
   const guardarActivo = (activo) => {
@@ -241,11 +250,22 @@ const Activos = () => {
       <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
         <div className="flex flex-col items-center p-4">
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
+          <select
+            onChange={(e) => setSelectedCamera(e.target.value)}
+            value={selectedCamera}
+            className="mb-4 p-2 border rounded"
+          >
+            {cameras.map((camera, index) => (
+              <option key={index} value={camera.deviceId}>
+                {camera.label || `Camera ${index + 1}`}
+              </option>
+            ))}
+          </select>
           <QrReader
             onResult={handleScan}
             onError={handleError}
             style={{ width: "100%" }}
-            constraints={{ facingMode: { ideal: "environment" } }}
+            constraints={{ deviceId: selectedCamera }}
           />
           <button
             onClick={() => setQrModalAbierto(false)}
