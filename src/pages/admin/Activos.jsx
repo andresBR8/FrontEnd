@@ -52,6 +52,7 @@ const Activos = () => {
   const [direccionOrden, setDireccionOrden] = useState("asc");
   const [paginaActual, setPaginaActual] = useState(1);
   const [activosPorPagina] = useState(10);
+  const [esDispositivoMovil, setEsDispositivoMovil] = useState(false);
   const navigate = useNavigate();
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -69,6 +70,10 @@ const Activos = () => {
 
   useEffect(() => {
     obtenerActivos();
+
+    // Verifica si es un dispositivo móvil
+    const isMobileDevice = /Mobi|Android/i.test(navigator.userAgent);
+    setEsDispositivoMovil(isMobileDevice);
   }, [obtenerActivos]);
 
   const guardarActivo = (activo) => {
@@ -224,12 +229,14 @@ const Activos = () => {
             onChange={(e) => setTerminoBusqueda(e.target.value)}
             className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
           />
-          <button
-            onClick={() => setQrModalAbierto(true)}
-            className="ml-2 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
-          >
-            <RiQrScan2Line />
-          </button>
+          {esDispositivoMovil && (
+            <button
+              onClick={() => setQrModalAbierto(true)}
+              className="ml-2 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
+            >
+              <RiQrScan2Line />
+            </button>
+          )}
         </div>
         <button onClick={agregarActivo} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
           Agregar Activos
