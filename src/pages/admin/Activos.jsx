@@ -410,9 +410,11 @@ const Activos = () => {
           marginPagesDisplayed={2}
           pageRangeDisplayed={5}
           onPageChange={paginacion}
-          containerClassName={"pagination"}
-          subContainerClassName={"pages pagination"}
-          activeClassName={"active"}
+          containerClassName={"pagination flex justify-center mt-4 mb-4"}
+          pageClassName={"mx-1 px-3 py-1 rounded-lg bg-white text-emi_azul border border-emi_azul"}
+          activeClassName={"bg-emi_azul text-white"}
+          previousClassName={"mx-1 px-3 py-1 rounded-lg bg-white text-emi_azul border border-emi_azul"}
+          nextClassName={"mx-1 px-3 py-1 rounded-lg bg-white text-emi_azul border border-emi_azul"}
         />
       </div>
       <ToastContainer />
