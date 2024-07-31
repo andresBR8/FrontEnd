@@ -16,7 +16,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import QrScanner from "react-qr-scanner";
+import { QrReader } from "react-qr-reader";
 
 Modal.setAppElement("#root");
 
@@ -183,7 +183,7 @@ const Activos = () => {
   };
 
   const handleScan = (result) => {
-    if (result) {
+    if (result?.text) {
       const codigo = result.text.split(" ")[0];
       const activoEncontrado = activos.find((activo) => activo.codigoAnterior === codigo || activo.codigoNuevo === codigo);
       if (activoEncontrado) {
@@ -241,12 +241,11 @@ const Activos = () => {
       <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
         <div className="flex flex-col items-center p-4">
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
-          <QrScanner
-            delay={300}
+          <QrReader
+            onResult={handleScan}
             onError={handleError}
-            onScan={handleScan}
             style={{ width: "100%" }}
-            facingMode="environment"
+            constraints={{ facingMode: { ideal: "environment" } }}
           />
           <button
             onClick={() => setQrModalAbierto(false)}
