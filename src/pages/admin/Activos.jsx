@@ -16,7 +16,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import QrScanner from "react-qr-scanner"; // Cambio aquí
+import QrScanner from "react-qr-scanner";
 
 Modal.setAppElement("#root");
 
@@ -43,7 +43,7 @@ const estilosPersonalizados = {
 
 const Activos = () => {
   const [activos, setActivos] = useState([]);
-  const [unidades, setUnidades] = useState({});
+  const [unidades, setUnidades] = useState([]);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [qrModalAbierto, setQrModalAbierto] = useState(false);
   const [activoSeleccionado, setActivoSeleccionado] = useState(null);
@@ -62,10 +62,14 @@ const Activos = () => {
       .get(`${apiUrl}/activo-modelo`)
       .then((response) => {
         setActivos(response.data.data);
-        const unidadesMap = {};
+        const unidadesMap = [];
         response.data.data.forEach((modelo) => {
           modelo.activoUnidades.forEach((unidad) => {
-            unidadesMap[unidad.codigo] = unidad;
+            unidadesMap.push({
+              codigo: unidad.codigo,
+              modeloId: modelo.id,
+              ...unidad,
+            });
           });
         });
         setUnidades(unidadesMap);
@@ -106,7 +110,7 @@ const Activos = () => {
   };
 
   const editarActivo = (activo) => {
-    if (unidades[activo.id] && unidades[activo.id].some((unidad) => unidad.asignado)) {
+    if (unidades.some((unidad) => unidad.modeloId === activo.id && unidad.asignado)) {
       toast.error("No se puede editar un modelo con unidades asignadas.");
       return;
     }
@@ -120,7 +124,7 @@ const Activos = () => {
   };
 
   const eliminarActivo = (id) => {
-    if (unidades[id] && unidades[id].some((unidad) => unidad.asignado)) {
+    if (unidades.some((unidad) => unidad.modeloId === id && unidad.asignado)) {
       toast.error("No se puede eliminar un modelo con unidades asignadas.");
       return;
     }
@@ -167,18 +171,8 @@ const Activos = () => {
   };
 
   const manejarUnidades = (id) => {
-    if (unidades[id]) {
-      setUnidades((prev) => ({ ...prev, [id]: null }));
-    } else {
-      axios
-        .get(`${apiUrl}/activo-modelo/${id}`)
-        .then((response) => {
-          setUnidades((prev) => ({ ...prev, [id]: response.data.data.activoUnidades }));
-        })
-        .catch((error) => {
-          console.error("Error al obtener unidades:", error);
-        });
-    }
+    const unidadesDelModelo = unidades.filter((unidad) => unidad.modeloId === id);
+    setUnidades((prev) => ({ ...prev, [id]: unidadesDelModelo.length ? null : unidadesDelModelo }));
   };
 
   const manejarAsignacion = (id, asignado) => {
@@ -194,7 +188,7 @@ const Activos = () => {
     if (data && data.text && escaneoActivo) {
       setEscaneoActivo(false); // Detener el escaneo
       const codigo = data.text.split(" ")[0];
-      const unidadEncontrada = unidades[codigo];
+      const unidadEncontrada = unidades.find((unidad) => unidad.codigo === codigo);
       if (unidadEncontrada) {
         setTerminoBusqueda(codigo);
         setQrModalAbierto(false);
@@ -219,7 +213,8 @@ const Activos = () => {
     (activo) =>
       activo.descripcion.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
       activo.codigoAnterior.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-      activo.codigoNuevo.toLowerCase().includes(terminoBusqueda.toLowerCase())
+      activo.codigoNuevo.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+      unidades.some((unidad) => unidad.modeloId === activo.id && unidad.codigo.toLowerCase().includes(terminoBusqueda.toLowerCase()))
   );
   const activosPaginados = activosFiltrados.slice(indexOfFirstActivo, indexOfLastActivo);
 
@@ -311,9 +306,9 @@ const Activos = () => {
                   <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
                     <button
                       onClick={() => editarActivo(activo)}
-                      disabled={unidades[activo.id] && unidades[activo.id].some((unidad) => unidad.asignado)}
+                      disabled={unidades.some((unidad) => unidad.modeloId === activo.id && unidad.asignado)}
                       className={`font-medium ${
-                        unidades[activo.id] && unidades[activo.id].some((unidad) => unidad.asignado)
+                        unidades.some((unidad) => unidad.modeloId === activo.id && unidad.asignado)
                           ? "text-gray-400"
                           : "text-emi_amarillo dark:text-black hover:underline"
                       }`}
@@ -322,9 +317,9 @@ const Activos = () => {
                     </button>
                     <button
                       onClick={() => eliminarActivo(activo.id)}
-                      disabled={unidades[activo.id] && unidades[activo.id].some((unidad) => unidad.asignado)}
+                      disabled={unidades.some((unidad) => unidad.modeloId === activo.id && unidad.asignado)}
                       className={`font-medium ${
-                        unidades[activo.id] && unidades[activo.id].some((unidad) => unidad.asignado)
+                        unidades.some((unidad) => unidad.modeloId === activo.id && unidad.asignado)
                           ? "text-gray-400"
                           : "text-red-600 dark:text-red-500 hover:underline"
                       }`}
@@ -334,11 +329,11 @@ const Activos = () => {
                   </td>
                   <td className="py-1 px-2 lg:px-6 text-right">
                     <button onClick={() => manejarUnidades(activo.id)} className="font-medium text-emi_azul dark:text-emi_amarillo hover:underline">
-                      {unidades[activo.id] ? <RiArrowUpSLine size="1.5em" /> : <RiArrowDownSLine size="1.5em" />}
+                      {unidades.some((unidad) => unidad.modeloId === activo.id) ? <RiArrowUpSLine size="1.5em" /> : <RiArrowDownSLine size="1.5em" />}
                     </button>
                   </td>
                 </tr>
-                {unidades[activo.id] && Array.isArray(unidades[activo.id]) && unidades[activo.id].length > 0 && (
+                {unidades.some((unidad) => unidad.modeloId === activo.id) && (
                   <tr>
                     <td colSpan="8" className="bg-gray-100 p-4">
                       <table className="w-full text-sm text-left text-emi_azul">
@@ -350,7 +345,7 @@ const Activos = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {unidades[activo.id].map((unidad) => (
+                          {unidades.filter((unidad) => unidad.modeloId === activo.id).map((unidad) => (
                             <tr key={unidad.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
                               <td className="py-1 px-2 lg:px-6">{unidad.codigo}</td>
                               <td className="py-1 px-2 lg:px-6">{unidad.asignado ? "Sí" : "No"}</td>
