@@ -78,7 +78,7 @@ const Activos = () => {
       const videoDevices = devices.filter((device) => device.kind === "videoinput");
       setCameras(videoDevices);
       const defaultCamera = videoDevices.find((device) =>
-        /back|rear|environment/gi.test(device.label)
+        /front|user|front/gi.test(device.label)
       );
       if (defaultCamera) {
         setSelectedCamera(defaultCamera.deviceId);
@@ -262,7 +262,7 @@ const Activos = () => {
             onResult={handleScan}
             onError={handleError}
             style={{ width: "100%" }}
-            constraints={{ facingMode: "environment" }}
+            constraints={{ facingMode: "user" }} // Aquí se establece que se debe usar la cámara delantera
             videoId={selectedCamera}
           />
           <button
