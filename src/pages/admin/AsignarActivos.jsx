@@ -145,140 +145,151 @@ const AsignarActivos = ({ onSave }) => {
   };
 
   return (
-    <div className="flex flex-wrap justify-center p-4">
-      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl m-4 flex-grow lg:w-1/2">
-        <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-emi_amarillo mb-8">
-          Asignar <span className="text-white">Activos</span>
-        </h1>
-        <form className="mb-8" onSubmit={handleAsignarActivos}>
-          <div className="relative mb-4">
-            <RiUserLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input 
-              type="text" 
-              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
-              placeholder="Buscar personal..." 
-              value={filtroPersonal} 
-              onChange={e => setFiltroPersonal(e.target.value)} 
-              onFocus={() => setShowDropdown(true)} 
-            />
-            {showDropdown && (
-              <div className="absolute w-full mt-1 z-10 bg-white shadow-md max-h-60 overflow-auto rounded-lg">
-                {personal.filter(p => p.nombre.toLowerCase().includes(filtroPersonal.toLowerCase())).map(p => (
-                  <div 
-                    key={p.id} 
-                    className="text-emi_azul p-2 cursor-pointer hover:bg-gray-200"
-                    onClick={() => handleSeleccionPersonal(p)}
-                  >
-                    {p.nombre}
-                  </div>
-                ))}
-              </div>
-            )}
+    <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl w-full">
+      <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-emi_amarillo mb-8">
+        Asignar <span className="text-white">Activos</span>
+      </h1>
+      <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
+        {/* Contenedor de Selección de Personal */}
+        <div className="w-full lg:w-1/2">
+          <div className="mb-4">
+            <div className="relative">
+              <RiUserLine className="absolute top-1/2 transform -translate-y-1/2 left-2 text-emi_azul" />
+              <input 
+                type="text" 
+                className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
+                placeholder="Buscar personal..." 
+                value={filtroPersonal} 
+                onChange={e => setFiltroPersonal(e.target.value)} 
+                onFocus={() => setShowDropdown(true)} 
+              />
+              {showDropdown && (
+                <div className="absolute w-full mt-1 z-10 bg-white shadow-md max-h-60 overflow-auto rounded-lg">
+                  {personal.filter(p => p.nombre.toLowerCase().includes(filtroPersonal.toLowerCase())).map(p => (
+                    <div 
+                      key={p.id} 
+                      className="text-emi_azul p-2 cursor-pointer hover:bg-gray-200"
+                      onClick={() => handleSeleccionPersonal(p)}
+                    >
+                      {p.nombre}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="relative mb-4">
-            <RiBriefcaseLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input 
-              type="text" 
-              readOnly 
-              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul" 
-              value={selectedPersonal?.cargo?.nombre || ''} 
-              placeholder="Cargo" 
-            />
+          <div className="mb-4">
+            <div className="relative">
+              <RiBriefcaseLine className="absolute top-1/2 transform -translate-y-1/2 left-2 text-emi_azul" />
+              <input 
+                type="text" 
+                readOnly 
+                className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul" 
+                value={selectedPersonal?.cargo?.nombre || ''} 
+                placeholder="Cargo" 
+              />
+            </div>
           </div>
-          <div className="relative mb-4">
-            <RiBuildingLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input 
-              type="text" 
-              readOnly 
-              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul" 
-              value={selectedPersonal?.unidad?.nombre || ''} 
-              placeholder="Unidad" 
-            />
+          <div className="mb-4">
+            <div className="relative">
+              <RiBuildingLine className="absolute top-1/2 transform -translate-y-1/2 left-2 text-emi_azul" />
+              <input 
+                type="text" 
+                readOnly 
+                className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul" 
+                value={selectedPersonal?.unidad?.nombre || ''} 
+                placeholder="Unidad" 
+              />
+            </div>
           </div>
           <button 
             type="button" 
-            className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors mb-4 flex items-center justify-center"
+            className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-[#054473] hover:text-emi_amarillo transition-colors flex items-center justify-center"
             onClick={handleResetPersonal}
           >
-            <RiRefreshLine className="mr-2" /> Resetear Personal
+            <RiRefreshLine className="mr-2 inline" /> Resetear Personal
           </button>
-        </form>
+        </div>
+
+        {/* Contenedor de Selección de Activos */}
+        <div className="w-full lg:w-1/2">
+          <div className="relative mb-4">
+            <RiSearchLine className="absolute top-1/2 transform -translate-y-1/2 left-2 text-emi_azul" />
+            <input 
+              type="text" 
+              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
+              placeholder="Buscar modelo de activo..." 
+              value={filtroModelo} 
+              onChange={handleFiltroModeloChange} 
+            />
+          </div>
+          <div className="mb-4">
+            <h3 className="text-lg text-emi_amarillo font-bold mb-2">Seleccionar Activos</h3>
+            <div className="max-h-60 overflow-auto">
+              {filteredActivos.map(modelo => (
+                <div key={modelo.id} className="mb-4 border-b pb-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="text-emi_amarillo cursor-pointer" onClick={() => toggleModeloUnidades(modelo.id)}>{modelo.nombre}</h4>
+                      <p className="text-emi_amarillo">Cantidad disponible: {modelo.cantidad}</p>
+                    </div>
+                    <RiCheckboxMultipleLine 
+                      className="text-emi_azul cursor-pointer" 
+                      onClick={() => toggleSeleccionarTodos(modelo.id)} 
+                      title="Seleccionar todos" 
+                    />
+                  </div>
+                  {activeModelo === modelo.id && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                      {modelo.activoUnidades.map(unidad => (
+                        <div key={unidad.id} className={`flex items-center bg-white p-2 rounded-lg shadow-sm ${unidad.seleccionado ? 'bg-[#054473] text-white' : 'bg-white text-emi_azul'}`}>
+                          <div className="flex items-center justify-center w-8 h-8 mr-2">
+                            {unidad.seleccionado ? (
+                              <RiCheckboxLine className="text-emi_amarillo cursor-pointer" onClick={() => toggleSeleccion(modelo.id, unidad.id)} />
+                            ) : (
+                              <RiCheckboxBlankLine className="text-emi_azul cursor-pointer" onClick={() => toggleSeleccion(modelo.id, unidad.id)} />
+                            )}
+                          </div>
+                          <div className="text-emi_azul">{unidad.codigo}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <button 
+            type="button" 
+            className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-[#054473] hover:text-emi_amarillo transition-colors mb-4"
+            onClick={handleGeneratePDF}
+          >
+            Generar PDF
+          </button>
+        </div>
       </div>
 
-      {/* Sección de Selección de Activos */}
-      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl m-4 flex-grow lg:w-1/2">
-        <div className="relative mb-4">
-          <RiSearchLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-          <input 
-            type="text" 
-            className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
-            placeholder="Buscar modelo de activo..." 
-            value={filtroModelo} 
-            onChange={handleFiltroModeloChange} 
-          />
-        </div>
-        <div className="mb-4">
-          <h3 className="text-lg text-emi_amarillo font-bold mb-2">Seleccionar Activos</h3>
-          <div className="max-h-60 overflow-auto">
-            {filteredActivos.map(modelo => (
-              <div key={modelo.id} className="mb-4 border-b pb-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="text-emi_amarillo cursor-pointer" onClick={() => toggleModeloUnidades(modelo.id)}>{modelo.nombre}</h4>
-                    <p className="text-emi_amarillo">Cantidad disponible: {modelo.cantidad}</p>
-                  </div>
-                  <RiCheckboxMultipleLine 
-                    className="text-primary cursor-pointer" 
-                    onClick={() => toggleSeleccionarTodos(modelo.id)} 
-                    title="Seleccionar todos" 
-                  />
-                </div>
-                {activeModelo === modelo.id && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                    {modelo.activoUnidades.map(unidad => (
-                      <div key={unidad.id} className={`flex items-center bg-white p-2 rounded-lg shadow-sm ${unidad.seleccionado ? 'bg-black' : ''}`}>
-                        <div className="flex items-center justify-center w-8 h-8 mr-2">
-                          {unidad.seleccionado ? (
-                            <RiCheckboxLine className="text-primary cursor-pointer" onClick={() => toggleSeleccion(modelo.id, unidad.id)} />
-                          ) : (
-                            <RiCheckboxBlankLine className="text-primary cursor-pointer" onClick={() => toggleSeleccion(modelo.id, unidad.id)} />
-                          )}
-                        </div>
-                        <div className="text-emi_azul">{unidad.codigo}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        <button 
-          type="button" 
-          className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors mb-4"
-          onClick={handleGeneratePDF}
-        >
-          Generar PDF
-        </button>
-        {pdfGenerated && (
-          <button 
-            type="submit" 
-            className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors"
-            onClick={handleAsignarActivos}
-          >
-            Asignar Activos
-          </button>
-        )}
-      </div>
+      {/* Visor de PDF */}
       {showPDF && (
-        <div className="w-full mt-4">
-          <PDFViewer style={{ width: '100%', height: '600px' }}>
+        <div className="w-full mt-4" style={{ height: '600px', overflow: 'auto' }}>
+          <PDFViewer style={{ width: '100%', height: '100%' }}>
             <CustodyDocument 
               data={{ nombre: selectedPersonal?.nombre, cargo: selectedPersonal?.cargo?.nombre, unidad: selectedPersonal?.unidad?.nombre }} 
               activos={activos.flatMap(modelo => modelo.activoUnidades.filter(unidad => unidad.seleccionado))}
             />
           </PDFViewer>
         </div>
+      )}
+      
+      {/* Botón de Asignar Activos al fondo */}
+      {pdfGenerated && (
+        <button 
+          type="submit" 
+          className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-[#054473] hover:text-emi_amarillo transition-colors mt-4"
+          onClick={handleAsignarActivos}
+        >
+          Asignar Activos
+        </button>
       )}
     </div>
   );

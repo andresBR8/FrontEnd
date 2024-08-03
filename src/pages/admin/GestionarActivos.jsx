@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
+import Modal from "react-modal";
 import Swal from 'sweetalert2';
 import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { Link } from 'react-router-dom';
+import { Bar, Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import axios from 'axios';
+import AsignarActivos from './AsignarActivos';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -14,7 +15,47 @@ const AssetManagement = () => {
   const [assignments, setAssignments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const itemsPerPage = 10;
+
+  const [modalStyles, setModalStyles] = useState({
+    content: {
+      top: '50%',
+      left: '50%',
+      right: 'auto',
+      bottom: 'auto',
+      marginRight: '-50%',
+      transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)',
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      borderRadius: '20px',
+      padding: '20px',
+      width: '90%',
+      maxWidth: '1000px',
+      maxHeight: '80vh',
+      overflow: 'auto',
+    },
+    overlay: {
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      zIndex: 1000
+    }
+  });
+
+  const updateModalStyles = () => {
+    setModalStyles(prevStyles => ({
+      ...prevStyles,
+      content: {
+        ...prevStyles.content,
+        transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
+      }
+    }));
+  };
+
+  useEffect(() => {
+    window.addEventListener('resize', updateModalStyles);
+    return () => {
+      window.removeEventListener('resize', updateModalStyles);
+    };
+  }, []);
 
   useEffect(() => {
     fetchAssignments();
@@ -72,24 +113,39 @@ const AssetManagement = () => {
     setCurrentPage(pageIndex);
   };
 
-  const barChartData = {
+  const pieChartData = {
     labels: [...new Set(assignments.map(assignment => assignment.personal.unidad?.nombre))].filter(Boolean),
     datasets: [{
       label: 'Asignaciones por Unidad',
       data: [...new Set(assignments.map(assignment => assignment.personal.unidad?.nombre))].filter(Boolean).map(unidad => (
         assignments.filter(assignment => assignment.personal.unidad?.nombre === unidad).length
       )),
-      backgroundColor: 'rgba(249, 185, 4, 0.6)',
+      backgroundColor: [
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(255, 99, 132, 0.6)',
+        'rgba(255, 206, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(153, 102, 255, 0.6)',
+        'rgba(255, 159, 64, 0.6)',
+        'rgba(199, 199, 199, 0.6)'
+      ],
       borderColor: 'rgba(5, 68, 115, 1)',
       borderWidth: 1
     }]
   };
 
-  const barChartOptions = {
+  const pieChartOptions = {
     responsive: true,
-    scales: {
-      y: {
-        beginAtZero: true
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      tooltip: {
+        callbacks: {
+          label: function(tooltipItem) {
+            return `${tooltipItem.label}: ${tooltipItem.raw}`;
+          }
+        }
       }
     }
   };
@@ -128,6 +184,15 @@ const AssetManagement = () => {
     }
   };
 
+  const openModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    fetchAssignments(); // Refresh assignments after modal is closed
+  };
+
   return (
     <div className="p-4">
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 space-y-4 md:space-y-0">
@@ -139,19 +204,12 @@ const AssetManagement = () => {
           onChange={handleSearchChange}
           className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
         />
-        <Link to="/asignar-activos" className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
+        <button onClick={openModal} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
           Agregar Asignación
-        </Link>
+        </button>
       </div>
       <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-10">
-        <div>
-          <h2 className="text-lg text-emi_azul font-bold mb-4">Asignaciones por Unidad</h2>
-          {barChartData && <Bar data={barChartData} options={barChartOptions} />}
-        </div>
-        <div>
-          <h2 className="text-lg text-emi_azul font-bold mb-4">Activos Asignados por Usuario</h2>
-          {horizontalBarChartData && <Bar data={horizontalBarChartData} options={horizontalBarChartOptions} />}
-        </div>
+      
       </div>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-emi_azul">
@@ -185,7 +243,7 @@ const AssetManagement = () => {
             ))}
           </tbody>
         </table>
-        <div className="flex justify-center mt-4 mb-4">
+        <div className="flex justify-center mt-4 mb-2">
           {Array.from({ length: Math.ceil(filteredAssignments.length / itemsPerPage) }, (_, index) => (
             <button
               key={index}
@@ -196,8 +254,30 @@ const AssetManagement = () => {
             </button>
           ))}
         </div>
+        
       </div>
+      <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-10 p-5">
+      <div>
+          <h2 className="text-lg text-emi_azul font-bold mb-4">Asignaciones por Unidad</h2>
+          {pieChartData && <Pie data={pieChartData} options={pieChartOptions} />}
+        </div>
+        <div>
+          <h2 className="text-lg text-emi_azul font-bold mb-4">Activos Asignados por Usuario</h2>
+          {horizontalBarChartData && <Bar data={horizontalBarChartData} options={horizontalBarChartOptions} />}
+        </div>
+      </div>
+
+      {/* Modal de Asignación de Activos */}
+      <Modal
+        isOpen={isModalOpen}
+        onRequestClose={closeModal}
+        style={modalStyles}
+        contentLabel="Asignar Activos"
+      >
+        <AsignarActivos onSave={closeModal} />
+      </Modal>
     </div>
+    
   );
 };
 

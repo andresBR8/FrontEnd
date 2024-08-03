@@ -21,27 +21,6 @@ import ReactPaginate from 'react-paginate';
 
 Modal.setAppElement("#root");
 
-const estilosPersonalizados = {
-  content: {
-    top: "50%",
-    left: "50%",
-    right: "auto",
-    bottom: "auto",
-    marginRight: "-50%",
-    transform: "translate(-50%, -50%)",
-    backgroundColor: "rgba(255, 255, 255, 0.35)",
-    borderRadius: "50px",
-    padding: "2px",
-    width: "90%",
-    maxWidth: "1000px",
-    overflow: "auto",
-    maxHeight: "90vh",
-  },
-  overlay: {
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
-  },
-};
-
 const Activos = () => {
   const [activos, setActivos] = useState([]);
   const [unidades, setUnidades] = useState([]);
@@ -56,8 +35,47 @@ const Activos = () => {
   const [activosPorPagina] = useState(10);
   const [escaneoActivo, setEscaneoActivo] = useState(true);
   const navigate = useNavigate();
-
+  
   const apiUrl = import.meta.env.VITE_API_URL;
+
+  const [modalStyles, setModalStyles] = useState({
+    content: {
+      top: '50%',
+      left: '50%',
+      right: 'auto',
+      bottom: 'auto',
+      marginRight: '-50%',
+      transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)',
+      backgroundColor: 'rgba(255, 255, 255, 0.35)',
+      borderRadius: '50px',
+      padding: '2px',
+      width: '90%',
+      maxWidth: '800px',
+      overflow: 'auto',
+      maxHeight: '90vh',
+    },
+    overlay: {
+      backgroundColor: 'rgba(0, 0, 0, 0.75)'
+    }
+  });
+
+  const updateModalStyles = () => {
+    console.log('Window innerWidth:', window.innerWidth);
+    setModalStyles(prevStyles => ({
+      ...prevStyles,
+      content: {
+        ...prevStyles.content,
+        transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
+      }
+    }));
+  };
+
+  useEffect(() => {
+    window.addEventListener('resize', updateModalStyles);
+    return () => {
+      window.removeEventListener('resize', updateModalStyles);
+    };
+  }, []);
 
   const obtenerActivos = useCallback(() => {
     axios
@@ -263,10 +281,10 @@ const Activos = () => {
           Agregar Activos
         </button>
       </div>
-      <Modal isOpen={modalAbierto} onRequestClose={() => setModalAbierto(false)} style={estilosPersonalizados}>
+      <Modal isOpen={modalAbierto} onRequestClose={() => setModalAbierto(false)} style={modalStyles}>
         <RegisterActivos activo={activoSeleccionado} onClose={() => setModalAbierto(false)} onSave={guardarActivo} />
       </Modal>
-      <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={estilosPersonalizados}>
+      <Modal isOpen={qrModalAbierto} onRequestClose={() => setQrModalAbierto(false)} style={modalStyles}>
         <div className="flex flex-col items-center p-4">
           <h2 className="text-2xl text-emi_azul font-bold mb-4">Escanear QR</h2>
           <QrScanner

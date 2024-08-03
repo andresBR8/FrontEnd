@@ -1,3 +1,4 @@
+// tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
@@ -28,7 +29,12 @@ module.exports = {
       },
       opacity: {
         '80': '0.90'
-      }
+      },
+      // Nuevas clases
+      translate: {
+        '-35': '-35%',
+        '-50': '-50%',
+      },
     },
   },
   plugins: [require("@headlessui/tailwindcss")],

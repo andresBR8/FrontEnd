@@ -3,6 +3,7 @@ import Swal from 'sweetalert2';
 import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
 import RegisterUnidades from "./RegisterUnidades";
 import Modal from 'react-modal';
+import { Pie } from 'react-chartjs-2';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
@@ -24,12 +25,12 @@ const Personal = () => {
       right: 'auto',
       bottom: 'auto',
       marginRight: '-50%',
-      transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)',
+      transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)',
       backgroundColor: 'rgba(255, 255, 255, 0.35)',
       borderRadius: '50px',
       padding: '2px',
       width: '90%',
-      maxWidth: '900px',
+      maxWidth: '800px',
     },
     overlay: {
       backgroundColor: 'rgba(0, 0, 0, 0.75)'
@@ -41,7 +42,7 @@ const Personal = () => {
       ...prevStyles,
       content: {
         ...prevStyles.content,
-        transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
+        transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
       }
     }));
   };
@@ -140,6 +141,47 @@ const Personal = () => {
     setCurrentPage(data.selected);
   };
 
+  // Datos para el gráfico de torta
+  const pieChartData = useMemo(() => {
+    const unidadNombres = [...new Set(unidades.map(unidad => unidad.unidad.nombre))];
+    const unidadCounts = unidadNombres.map(unidadNombre => (
+      unidades.filter(unidad => unidad.unidad.nombre === unidadNombre).length
+    ));
+    return {
+      labels: unidadNombres,
+      datasets: [{
+        data: unidadCounts,
+        backgroundColor: [
+          'rgba(54, 162, 235, 0.6)',
+          'rgba(255, 99, 132, 0.6)',
+          'rgba(255, 206, 86, 0.6)',
+          'rgba(75, 192, 192, 0.6)',
+          'rgba(153, 102, 255, 0.6)',
+          'rgba(255, 159, 64, 0.6)',
+          'rgba(199, 199, 199, 0.6)'
+        ],
+        borderColor: 'rgba(5, 68, 115, 1)',
+        borderWidth: 1
+      }]
+    };
+  }, [unidades]);
+
+  const pieChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      tooltip: {
+        callbacks: {
+          label: function(tooltipItem) {
+            return `${tooltipItem.label}: ${tooltipItem.raw}`;
+          }
+        }
+      }
+    }
+  };
+
   return (
     <div className="p-4 px-0 lg:px-0">
       <div className="flex flex-col lg:flex-row justify-between items-center mb-8 space-y-4 lg:space-y-3">
@@ -220,6 +262,12 @@ const Personal = () => {
             {index + 1}
           </button>
         ))}
+      </div>
+      <div className="mt-10">
+        <h2 className="text-xl text-emi_azul font-bold mb-4">Distribución de Personal por Unidad</h2>
+        <div className="w-full md:w-1/2 mx-auto">
+          <Pie data={pieChartData} options={pieChartOptions} />
+        </div>
       </div>
     </div>
   );
