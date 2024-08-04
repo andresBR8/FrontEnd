@@ -31,6 +31,7 @@ const Personal = () => {
       padding: '2px',
       width: '90%',
       maxWidth: '800px',
+      overflow: 'auto', 
     },
     overlay: {
       backgroundColor: 'rgba(0, 0, 0, 0.75)'

@@ -17,25 +17,6 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import 'tailwindcss/tailwind.css';
 
-const estilosPersonalizados = {
-  content: {
-    top: '50%',
-    left: '50%',
-    right: 'auto',
-    bottom: 'auto',
-    marginRight: '-50%',
-    transform: 'translate(-50%, -50%)',
-    width: '90%',
-    maxWidth: '1000px',
-    height: '90%',
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
-    borderRadius: '50px',
-    padding: '2px',
-  },
-  overlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-  },
-};
 const apiUrl = import.meta.env.VITE_API_URL;
 
 const calculateDepreciation = (fechaIngreso, vidaUtil) => {
@@ -49,6 +30,43 @@ const calculateDepreciation = (fechaIngreso, vidaUtil) => {
 const SeguimientoActivo = ({ unidadId, onClose }) => {
   const [activoData, setActivoData] = useState(null);
   const [eventos, setEventos] = useState([]);
+  const [modalStyles, setModalStyles] = useState({
+    content: {
+      top: '50%',
+      left: '50%',
+      right: 'auto',
+      bottom: 'auto',
+      marginRight: '-50%',
+      transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-39%, -50%)',
+      width: '90%',
+      maxWidth: '1000px',
+      height: '90%',
+      backgroundColor: 'rgba(255, 255, 255, 0.35)',
+      borderRadius: '50px',
+      padding: '2px',
+      overflow: 'auto', 
+    },
+    overlay: {
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    },
+  });
+
+  const updateModalStyles = () => {
+    setModalStyles(prevStyles => ({
+      ...prevStyles,
+      content: {
+        ...prevStyles.content,
+        transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
+      }
+    }));
+  };
+
+  useEffect(() => {
+    window.addEventListener('resize', updateModalStyles);
+    return () => {
+      window.removeEventListener('resize', updateModalStyles);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -117,7 +135,7 @@ const SeguimientoActivo = ({ unidadId, onClose }) => {
   };
 
   return (
-    <Modal isOpen={Boolean(unidadId)} onRequestClose={onClose} style={estilosPersonalizados}>
+    <Modal isOpen={Boolean(unidadId)} onRequestClose={onClose} style={modalStyles}>
       <div className="p-4 bg-white">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-emi_azul">Seguimiento del Activo</h2>

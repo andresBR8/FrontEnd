@@ -23,7 +23,7 @@ import RegisterActivos from "./pages/admin/RegisterActivos";
 import AsignarActivos from "./pages/admin/AsignarActivos";
 import Usuarios from "./pages/admin/Usuarios";
 import RegisterUnidades from "./pages/admin/RegisterUnidades";
-import SeguimientoActivos from "./pages/admin/SeguimientoActivos";
+
 import GestionActivos from "./pages/admin/GestionarActivos";
 import Reset from "./pages/auth/ResetPassword";
 import Calendario from "./pages/admin/Calendario";
@@ -88,7 +88,7 @@ function App() {
             <Route path="asignar-activos" element={<AsignarActivos />} />
             <Route path="usuarios" element={<Usuarios />} />
             <Route path="registrounidades" element={<RegisterUnidades />} />
-            <Route path="seguimientoactivos" element={<SeguimientoActivos />} />
+            
             <Route path="gestionaractivos" element={<GestionActivos />} />
             <Route path="calendario" element={<Calendario />} />
             <Route path='depreciacion' element={<Depreciacion />} />

@@ -11,6 +11,7 @@ import {
   RiQrScan2Line,
 } from "react-icons/ri";
 import RegisterActivos from "./RegisterActivos";
+import SeguimientoActivo from "./SeguimientoActivo";  // Importa el componente de seguimiento
 import Modal from "react-modal";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
@@ -34,6 +35,7 @@ const Activos = () => {
   const [paginaActual, setPaginaActual] = useState(0);
   const [activosPorPagina] = useState(10);
   const [escaneoActivo, setEscaneoActivo] = useState(true);
+  const [unidadIdSeguimiento, setUnidadIdSeguimiento] = useState(null);  // Nueva variable de estado para el ID de la unidad a seguir
   const navigate = useNavigate();
   
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -203,26 +205,45 @@ const Activos = () => {
   };
 
   const manejarSeguimiento = (id) => {
-    navigate(`/seguimiento/${id}`);
+    setUnidadIdSeguimiento(id);  // Establece el ID de la unidad para seguimiento
   };
 
   const handleScan = (data) => {
     if (data && data.text && escaneoActivo) {
       setEscaneoActivo(false); // Detener el escaneo
-      const codigo = data.text.split(" ")[0];
-      const unidadEncontrada = unidades.find((unidad) => unidad.codigo === codigo);
-      if (unidadEncontrada) {
-        setTerminoBusqueda(codigo);
-        setUnidadesDesplegadas((prevDesplegadas) => ({
-          ...prevDesplegadas,
-          [unidadEncontrada.modeloId]: true,
-        }));
-        setQrModalAbierto(false);
-        toast.success("Activo encontrado.");
+
+      let codigo = "";
+
+      // Identificar el formato del QR
+      if (data.text.includes("Activo ID:")) {
+        // Nuevo formato
+        const regex = /Código:\s*(\S+)/;
+        const match = data.text.match(regex);
+        if (match) {
+          codigo = match[1];
+        }
       } else {
-        toast.error("Activo no encontrado.");
-        setEscaneoActivo(true); // Reanudar el escaneo
+        // Formato antiguo
+        codigo = data.text.split(" ")[0];
       }
+
+      if (codigo) {
+        const unidadEncontrada = unidades.find((unidad) => unidad.codigo === codigo);
+        if (unidadEncontrada) {
+          setTerminoBusqueda(codigo);
+          setUnidadesDesplegadas((prevDesplegadas) => ({
+            ...prevDesplegadas,
+            [unidadEncontrada.modeloId]: true,
+          }));
+          setQrModalAbierto(false);
+          toast.success("Activo encontrado.");
+        } else {
+          toast.error("Activo no encontrado.");
+        }
+      } else {
+        toast.error("Formato de QR no reconocido.");
+      }
+      setEscaneoActivo(true); // Reanudar el escaneo
     }
   };
 
@@ -435,6 +456,7 @@ const Activos = () => {
           nextClassName={"mx-1 px-3 py-1 rounded-lg bg-white text-emi_azul border border-emi_azul"}
         />
       </div>
+      <SeguimientoActivo unidadId={unidadIdSeguimiento} onClose={() => setUnidadIdSeguimiento(null)} /> {/* Integración del modal */}
       <ToastContainer />
     </div>
   );
