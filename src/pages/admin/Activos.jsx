@@ -51,8 +51,8 @@ const Activos = () => {
       backgroundColor: 'rgba(255, 255, 255, 0.35)',
       borderRadius: '50px',
       padding: '2px',
-      width: '90%',
-      maxWidth: '800px',
+      width: '100%',
+      maxWidth: '1000px',
       overflow: 'auto',
       maxHeight: '90vh',
     },
@@ -105,30 +105,10 @@ const Activos = () => {
     obtenerActivos();
   }, [obtenerActivos]);
 
-  const guardarActivo = (activo) => {
-    const metodo = activo.id ? "put" : "post";
-    const url = `${apiUrl}/activo-modelo/${activo.id ? activo.id : ""}`;
-    const data = {
-      fkPartida: activo.fkPartida,
-      fechaIngreso: new Date(activo.fechaIngreso).toISOString(),
-      costo: activo.costo,
-      descripcion: activo.descripcion,
-      estado: activo.estado,
-      codigoAnterior: activo.codigoAnterior,
-      codigoNuevo: activo.codigoNuevo,
-      ordenCompra: activo.ordenCompra,
-    };
-
-    axios({ method: metodo, url, data })
-      .then((response) => {
-        setModalAbierto(false);
-        toast.success(`El activo ha sido ${activo.id ? "actualizado" : "registrado"} con éxito.`);
-        obtenerActivos();
-      })
-      .catch((error) => {
-        console.error("Error al crear o actualizar el activo:", error);
-        toast.error(`No se pudo ${activo.id ? "actualizar" : "registrar"} el activo.`);
-      });
+  const guardarActivo = () => {
+    setModalAbierto(false);
+    toast.success("Los activos han sido registrados con éxito.");
+    obtenerActivos();
   };
 
   const editarActivo = (activo) => {
