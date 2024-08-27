@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RiNotification3Line, RiArrowDownSLine, RiLogoutCircleRLine, RiDatabaseLine, RiCheckLine } from "react-icons/ri";
+import { RiNotification3Line, RiArrowDownSLine, RiLogoutCircleRLine, RiDatabaseLine } from "react-icons/ri";
 import { Menu, MenuItem, MenuButton } from "@szhsin/react-menu";
 import "@szhsin/react-menu/dist/index.css";
 import "@szhsin/react-menu/dist/transitions/slide.css";
@@ -34,16 +34,54 @@ const Header = () => {
 
     socket.emit('setRole', localStorage.getItem('role'));
 
+    // Captura de notificaciones relacionadas con la asignación
+    socket.on('asignacion-creada', (data) => {
+      const newNotification = { 
+        type: 'success', 
+        message: `${data.mensaje}`, 
+        timestamp: new Date().toISOString() 
+      };
+      handleNewNotification(newNotification);
+    });
+
+    socket.on('asignacion-actualizada', (data) => {
+      const newNotification = { 
+        type: 'info', 
+        message: `Asignación actualizada por ${data.fkUsuario}`, 
+        timestamp: new Date().toISOString() 
+      };
+      handleNewNotification(newNotification);
+    });
+
+    socket.on('asignacion-eliminada', (data) => {
+      const newNotification = { 
+        type: 'warning', 
+        message: `Asignación eliminada`, 
+        timestamp: new Date().toISOString() 
+      };
+      handleNewNotification(newNotification);
+    });
+
+    // Otras notificaciones, como las de backup
     socket.on('backup-success', (data) => {
       if (['Administrador', 'Encargado'].includes(localStorage.getItem('role'))) {
-        const newNotification = { type: 'success', message: `Backup realizado exitosamente`, backupUrl: data.backupUrl, timestamp: new Date().toISOString() };
+        const newNotification = { 
+          type: 'success', 
+          message: `Backup realizado exitosamente`, 
+          backupUrl: data.backupUrl, 
+          timestamp: new Date().toISOString() 
+        };
         handleNewNotification(newNotification);
       }
     });
 
     socket.on('backup-error', (data) => {
       if (['Administrador', 'Encargado'].includes(localStorage.getItem('role'))) {
-        const newNotification = { type: 'error', message: data.message, timestamp: new Date().toISOString() };
+        const newNotification = { 
+          type: 'error', 
+          message: data.message, 
+          timestamp: new Date().toISOString() 
+        };
         handleNewNotification(newNotification);
       }
     });
@@ -141,7 +179,7 @@ const Header = () => {
               <div className="text-gray-300 flex flex-1 items-center gap-4 py-2 px-4 hover:bg-secondary-900 transition-colors rounded-lg">
                 <div className="text-sm flex flex-col">
                   <div className="flex items-center justify-between gap-4">
-                    <span>{notificacion.type === 'success' ? 'Backup Exitoso' : 'Error de Backup'}</span>
+                    <span>{notificacion.type === 'success' ? 'Notificación Exitosa' : 'Error de Notificación'}</span>
                     <span className="text-[8px]">{new Date(notificacion.timestamp).toLocaleDateString()}</span>
                   </div>
                   <p className="text-gray-500 text-xs">

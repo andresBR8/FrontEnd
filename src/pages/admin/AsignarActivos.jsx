@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import Swal from 'sweetalert2';
-import { RiUserLine, RiBriefcaseLine, RiBuildingLine, RiCheckboxBlankLine, RiCheckboxLine, RiCheckboxMultipleLine, RiSearchLine, RiRefreshLine } from "react-icons/ri";
+import { RiUserLine, RiBriefcaseLine, RiBuildingLine, RiSearchLine, RiRefreshLine } from "react-icons/ri";
 import { PDFViewer } from '@react-pdf/renderer';
 import CustodyDocument from './PDF';
 import axios from 'axios';
+import Select from 'react-select';
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -18,19 +19,32 @@ const AsignarActivos = ({ onSave }) => {
   const [showPDF, setShowPDF] = useState(false);
   const [pdfGenerated, setPdfGenerated] = useState(false);
   const [activeModelo, setActiveModelo] = useState(null);
+  const [selectedActivos, setSelectedActivos] = useState({});
 
   useEffect(() => {
-    axios.get(`${apiUrl}/personal`)
-      .then(response => setPersonal(response.data.data))
-      .catch(error => console.error('Error fetching personal:', error));
-
-    axios.get(`${apiUrl}/activo-modelo`)
-      .then(response => {
-        setActivos(response.data.data);
-        setFilteredActivos(response.data.data);
-      })
-      .catch(error => console.error('Error fetching activos:', error));
+    fetchPersonal();
+    fetchActivos();
   }, []);
+
+  const fetchPersonal = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/personal`);
+      setPersonal(response.data.data);
+    } catch (error) {
+      console.error('Error fetching personal:', error);
+    }
+  };
+
+  const fetchActivos = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/activo-modelo`);
+      const activosConCantidad = response.data.data.filter(modelo => modelo.activoUnidades.filter(u => !u.asignado).length > 0);
+      setActivos(activosConCantidad);
+      setFilteredActivos(activosConCantidad);
+    } catch (error) {
+      console.error('Error fetching activos:', error);
+    }
+  };
 
   const handleSeleccionPersonal = (persona) => {
     setSelectedPersonal(persona);
@@ -38,48 +52,51 @@ const AsignarActivos = ({ onSave }) => {
     setShowDropdown(false);
   };
 
-  const toggleSeleccion = (modeloId, unidadId) => {
-    setActivos(prevActivos => prevActivos.map(modelo => (
-      modelo.id === modeloId
-        ? {
-          ...modelo,
-          activoUnidades: modelo.activoUnidades.map(unidad => (
-            unidad.id === unidadId ? { ...unidad, seleccionado: !unidad.seleccionado } : unidad
-          ))
-        }
-        : modelo
-    )));
+  const handleSeleccionActivos = (modeloId, unidades) => {
+    setSelectedActivos(prevSelectedActivos => ({
+      ...prevSelectedActivos,
+      [modeloId]: unidades
+    }));
   };
 
-  const toggleSeleccionarTodos = (modeloId) => {
-    setActivos(prevActivos => prevActivos.map(modelo => (
-      modelo.id === modeloId
-        ? {
-          ...modelo,
-          activoUnidades: modelo.activoUnidades.map(unidad => (
-            { ...unidad, seleccionado: !modelo.activoUnidades.every(u => u.seleccionado) }
-          ))
-        }
-        : modelo
-    )));
+  const handleSelectAll = (modeloId) => {
+    const modelo = activos.find(modelo => modelo.id === modeloId);
+    const unidades = modelo.activoUnidades.filter(u => !u.asignado).map(unidad => ({
+      value: unidad.id,
+      label: unidad.codigo,
+      estado: modelo.estado,
+      nombre: modelo.nombre,
+      fechaIngreso: modelo.fechaIngreso,
+      unidad: modelo.descripcion
+    }));
+    handleSeleccionActivos(modeloId, unidades);
   };
 
   const handleGeneratePDF = () => {
-    const selectedActivos = activos.flatMap(modelo => modelo.activoUnidades.filter(unidad => unidad.seleccionado));
-    if (!selectedPersonal || selectedActivos.length === 0) {
+    const selectedActivosList = Object.values(selectedActivos).flat();
+    if (!selectedPersonal || selectedActivosList.length === 0) {
       Swal.fire('Error', 'Por favor seleccione un personal y al menos un activo', 'error');
       return;
     }
+  
+    const pdfData = {
+      nombre: selectedPersonal?.nombre,
+      cargo: selectedPersonal?.cargo?.nombre,
+      unidad: selectedPersonal?.unidad?.nombre,
+      activos: selectedActivosList
+    };
+  
+    console.log('PDF Data:', pdfData); // Asegúrate de imprimir los datos correctos
     setShowPDF(true);
     setPdfGenerated(true);
   };
 
   const handleAsignarActivos = async (e) => {
     e.preventDefault();
-    const selectedActivos = activos.flatMap(modelo => modelo.activoUnidades.filter(unidad => unidad.seleccionado));
-    const fk_Usuario = localStorage.getItem('id');
+    const selectedActivosList = Object.values(selectedActivos).flat();
+    const fkUsuario = localStorage.getItem('id');
 
-    if (!selectedPersonal || selectedActivos.length === 0) {
+    if (!selectedPersonal || selectedActivosList.length === 0) {
       Swal.fire('Error', 'Por favor seleccione un personal y al menos un activo', 'error');
       return;
     }
@@ -95,36 +112,27 @@ const AsignarActivos = ({ onSave }) => {
 
     if (result.isConfirmed) {
       try {
-        const activosUnidades = selectedActivos.reduce((acc, unidad) => {
-          const existing = acc.find(item => item.activoModeloId === unidad.fkActivoModelo);
-          if (existing) {
-            existing.cantidad += 1;
-          } else {
-            acc.push({ activoModeloId: unidad.fkActivoModelo, cantidad: 1 });
-          }
-          return acc;
-        }, []);
+        const activosUnidades = Object.entries(selectedActivos).map(([modeloId, unidades]) => ({
+          activoModeloId: parseInt(modeloId),
+          unidades: unidades.map(u => u.value)
+        }));
+
+        const fechaAsignacion = new Date().toISOString(); // Incluye fecha, hora y minutos
 
         const data = {
-          fkUsuario: fk_Usuario,
+          fkUsuario,
           fkPersonal: selectedPersonal.id,
-          fechaAsignacion: new Date().toISOString().split("T")[0],
+          fechaAsignacion,
           detalle: "Asignación de equipos",
           activosUnidades
         };
 
         await axios.post(`${apiUrl}/asignacion`, data);
 
-        for (const unidad of selectedActivos) {
-          await axios.put(`${apiUrl}/unidades/${unidad.id}`, {
-            ...unidad,
-            asignado: true
-          });
-        }
-
         Swal.fire('¡Éxito!', 'Los activos han sido asignados con éxito.', 'success');
         onSave();
       } catch (error) {
+        console.log('Error al asignar activos:', error);
         Swal.fire('Error', 'No se pudo asignar los activos.', 'error');
       }
     }
@@ -150,7 +158,6 @@ const AsignarActivos = ({ onSave }) => {
         Asignar <span className="text-white">Activos</span>
       </h1>
       <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
-        {/* Contenedor de Selección de Personal */}
         <div className="w-full lg:w-1/2">
           <div className="mb-4">
             <div className="relative">
@@ -211,7 +218,6 @@ const AsignarActivos = ({ onSave }) => {
           </button>
         </div>
 
-        {/* Contenedor de Selección de Activos */}
         <div className="w-full lg:w-1/2">
           <div className="relative mb-4">
             <RiSearchLine className="absolute top-1/2 transform -translate-y-1/2 left-2 text-emi_azul" />
@@ -231,29 +237,31 @@ const AsignarActivos = ({ onSave }) => {
                   <div className="flex justify-between items-center">
                     <div>
                       <h4 className="text-emi_amarillo cursor-pointer" onClick={() => toggleModeloUnidades(modelo.id)}>{modelo.nombre}</h4>
-                      <p className="text-emi_amarillo">Cantidad disponible: {modelo.cantidad}</p>
+                      <p className="text-emi_amarillo">Cantidad disponible: {modelo.activoUnidades.filter(u => !u.asignado).length}</p>
                     </div>
-                    <RiCheckboxMultipleLine 
-                      className="text-emi_azul cursor-pointer" 
-                      onClick={() => toggleSeleccionarTodos(modelo.id)} 
-                      title="Seleccionar todos" 
-                    />
+                    <button 
+                      className="text-emi_azul bg-emi_amarillo py-1 px-2 rounded-lg hover:bg-[#054473] hover:text-emi_amarillo transition-colors"
+                      onClick={() => handleSelectAll(modelo.id)}
+                    >
+                      Seleccionar todos
+                    </button>
                   </div>
                   {activeModelo === modelo.id && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                      {modelo.activoUnidades.map(unidad => (
-                        <div key={unidad.id} className={`flex items-center bg-white p-2 rounded-lg shadow-sm ${unidad.seleccionado ? 'bg-[#054473] text-white' : 'bg-white text-emi_azul'}`}>
-                          <div className="flex items-center justify-center w-8 h-8 mr-2">
-                            {unidad.seleccionado ? (
-                              <RiCheckboxLine className="text-emi_amarillo cursor-pointer" onClick={() => toggleSeleccion(modelo.id, unidad.id)} />
-                            ) : (
-                              <RiCheckboxBlankLine className="text-emi_azul cursor-pointer" onClick={() => toggleSeleccion(modelo.id, unidad.id)} />
-                            )}
-                          </div>
-                          <div className="text-emi_azul">{unidad.codigo}</div>
-                        </div>
-                      ))}
-                    </div>
+                    <Select
+                      isMulti
+                      options={modelo.activoUnidades.filter(u => !u.asignado).map(unidad => ({
+                        value: unidad.id,
+                        label: unidad.codigo,
+                        estado: modelo.estado,
+                        nombre: modelo.nombre,
+                        fechaIngreso: modelo.fechaIngreso,
+                        unidad: modelo.descripcion
+                      }))}
+                      className="basic-multi-select mt-2"
+                      classNamePrefix="select"
+                      onChange={(selectedOptions) => handleSeleccionActivos(modelo.id, selectedOptions)}
+                      value={selectedActivos[modelo.id] || []}
+                    />
                   )}
                 </div>
               ))}
@@ -269,19 +277,21 @@ const AsignarActivos = ({ onSave }) => {
         </div>
       </div>
 
-      {/* Visor de PDF */}
       {showPDF && (
-        <div className="w-full mt-4" style={{ height: '600px', overflow: 'auto' }}>
+        <div className="w-full mt-4" style={{ height: '800px', overflow: 'auto' }}>
           <PDFViewer style={{ width: '100%', height: '100%' }}>
             <CustodyDocument 
-              data={{ nombre: selectedPersonal?.nombre, cargo: selectedPersonal?.cargo?.nombre, unidad: selectedPersonal?.unidad?.nombre }} 
-              activos={activos.flatMap(modelo => modelo.activoUnidades.filter(unidad => unidad.seleccionado))}
+              data={{
+                nombre: selectedPersonal?.nombre,
+                cargo: selectedPersonal?.cargo?.nombre,
+                unidad: selectedPersonal?.unidad?.nombre
+              }} 
+              activos={Object.values(selectedActivos).flat()}
             />
           </PDFViewer>
         </div>
       )}
       
-      {/* Botón de Asignar Activos al fondo */}
       {pdfGenerated && (
         <button 
           type="submit" 

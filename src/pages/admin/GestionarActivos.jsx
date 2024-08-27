@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Modal from "react-modal";
 import Swal from 'sweetalert2';
-import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
+import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine } from "react-icons/ri";
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import axios from 'axios';
@@ -16,6 +16,7 @@ const AssetManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [expandedRow, setExpandedRow] = useState(null);
   const itemsPerPage = 10;
 
   const [modalStyles, setModalStyles] = useState({
@@ -193,6 +194,10 @@ const AssetManagement = () => {
     fetchAssignments(); // Refresh assignments after modal is closed
   };
 
+  const toggleRow = (assignmentId) => {
+    setExpandedRow(expandedRow === assignmentId ? null : assignmentId);
+  };
+
   return (
     <div className="p-4">
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 space-y-4 md:space-y-0">
@@ -209,37 +214,58 @@ const AssetManagement = () => {
         </button>
       </div>
       <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-10">
-      
+        {/* Add additional content or charts here */}
       </div>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-emi_azul">
           <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
             <tr>
-              <th scope="col" className="py-2 px-2 lg:px-6">ID</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Usuario</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Personal</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Detalle</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Unidad</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Acciones</th>
+              <th scope="col" className="py-2 px-1 lg:px-2"></th>
+              <th scope="col" className="py-2 px-1 lg:px-2">ID</th>
+              <th scope="col" className="py-2 px-2 lg:px-2">Usuario</th>
+              <th scope="col" className="py-2 px-2 lg:px-2">Rol Usuario</th>
+              <th scope="col" className="py-2 px-2 lg:px-2">Personal</th>
+              <th scope="col" className="py-2 px-2 lg:px-2">Detalle</th>
+              <th scope="col" className="py-2 px-2 lg:px-2">Unidad</th>
+              <th scope="col" className="py-2 px-2 lg:px-2">Fecha de Asignación</th>
+              
             </tr>
           </thead>
           <tbody>
             {paginatedAssignments.map((assignment) => (
-              <tr key={assignment.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                <td className="py-1 px-2 lg:px-6">{assignment.id}</td>
-                <td className="py-1 px-2 lg:px-6">{assignment.usuario.role}</td>
-                <td className="py-1 px-2 lg:px-6">{assignment.personal.nombre}</td>
-                <td className="py-1 px-2 lg:px-6">{assignment.detalle}</td>
-                <td className="py-1 px-2 lg:px-6">{assignment.personal.unidad?.nombre || 'N/A'}</td>
-                <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
-                  <button className="font-medium text-emi_amarillo dark:text-black hover:underline">
-                    <RiEdit2Line size="1.5em" />
-                  </button>
-                  <button onClick={() => handleDelete(assignment.id)} className="font-medium text-red-600 dark:text-red-500 hover:underline">
-                    <RiDeleteBin6Line size="1.5em" />
-                  </button>
-                </td>
-              </tr>
+              <React.Fragment key={assignment.id}>
+                <tr className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
+                  <td className="py-1 px-2 lg:px-6">
+                    <button onClick={() => toggleRow(assignment.id)}>
+                      {expandedRow === assignment.id ? <RiArrowUpSLine size="1.5em" /> : <RiArrowDownSLine size="1.5em" />}
+                    </button>
+                  </td>
+                  <td className="py-1 px-2 lg:px-6">{assignment.id}</td>
+                  <td className="py-1 px-2 lg:px-6">{assignment.usuario.username}</td>
+                  <td className="py-1 px-2 lg:px-6">{obtenerRolUsuario(assignment.usuario.role)}</td>
+                  <td className="py-1 px-2 lg:px-6">{assignment.personal.nombre}</td>
+                  <td className="py-1 px-2 lg:px-6">{assignment.detalle}</td>
+                  <td className="py-1 px-2 lg:px-6">{assignment.personal.unidad?.nombre || 'N/A'}</td>
+                  <td className="py-1 px-2 lg:px-6">{new Date(assignment.fechaAsignacion).toLocaleString()}</td>
+                  
+                </tr>
+                {expandedRow === assignment.id && (
+                  <tr className="bg-white dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
+                    <td colSpan="10" className="py-4 px-6">
+                      <div>
+                        <h4 className="text-lg text-emi_azul font-bold">Activos Asignados</h4>
+                        <ul className="list-disc pl-5">
+                          {assignment.asignacionActivos.map((activo) => (
+                            <li key={activo.id} className="text-emi_azul">
+                              Código: {activo.activoUnidad.codigo}, Modelo: {activo.activoUnidad.fkActivoModelo}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -254,10 +280,9 @@ const AssetManagement = () => {
             </button>
           ))}
         </div>
-        
       </div>
       <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-10 p-5">
-      <div>
+        <div>
           <h2 className="text-lg text-emi_azul font-bold mb-4">Asignaciones por Unidad</h2>
           {pieChartData && <Pie data={pieChartData} options={pieChartOptions} />}
         </div>
@@ -277,7 +302,6 @@ const AssetManagement = () => {
         <AsignarActivos onSave={closeModal} />
       </Modal>
     </div>
-    
   );
 };
 

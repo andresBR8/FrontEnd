@@ -34,6 +34,7 @@ const Sidebar = () => {
 
   const shouldHideMenu = userRole === 'Encargado' || userRole === 'Personal';
   const shouldHideMenu2 = userRole === 'Personal';
+  const shouldHideMenu3 = userRole === 'Encargado' || userRole === 'Personal' || userRole === 'Administrador';
 
   const handleLogout = () => {
     localStorage.clear();  // Esto elimina todos los elementos de localStorage
@@ -132,7 +133,7 @@ const Sidebar = () => {
                   </Link>
                 </li>
                 )}
-                {!shouldHideMenu2 && (
+                {!shouldHideMenu3 && (
                 <li>
                   <Link
                     to="/mantenimiento"
@@ -152,7 +153,7 @@ const Sidebar = () => {
                   </Link>
                 </li>
                 )}
-                {!shouldHideMenu2 && (
+                {!shouldHideMenu && (
                 <li>
                   <Link
                     to="/reportes"

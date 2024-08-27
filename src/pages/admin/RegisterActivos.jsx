@@ -6,13 +6,12 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const RegisterActivos = ({ onClose, onSave }) => {
-  const todayDate = moment().tz('America/La_Paz').format('YYYY-MM-DD');
   const [partidas, setPartidas] = useState([]);
   const [activo, setActivo] = useState({
     fkPartida: '',
     nombre: '',
     descripcion: '',
-    fechaIngreso: todayDate,
+    fechaIngreso: '',
     costo: '',
     estado: '',
     codigoNuevo: '',
@@ -26,6 +25,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
   const [dragOver, setDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isFileUploaded, setIsFileUploaded] = useState(false);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -80,14 +80,16 @@ const RegisterActivos = ({ onClose, onSave }) => {
 
     axios.post(`${apiUrl}/upload`, formData)
       .then((response) => {
+        const fileUrl = response.data.url;
         toast.success('Archivo subido exitosamente');
+        setUploadedFileUrl(fileUrl);
         setActivo(prevState => ({
           ...prevState,
-          ordenCompra: response.data.url
+          ordenCompra: fileUrl
         }));
         setIsFileUploaded(true);
         setSelectedFile(null);
-        setFilePreview(response.data.url);
+        setFilePreview(fileUrl); // Actualiza la previsualización con la URL real
       })
       .catch((error) => {
         console.error('Error al subir el archivo:', error);
@@ -118,44 +120,48 @@ const RegisterActivos = ({ onClose, onSave }) => {
       !activo.fkPartida ||
       !activo.nombre ||
       !activo.descripcion ||
-      !activo.fechaIngreso ||
       !activo.costo ||
       !activo.estado ||
       !activo.codigoNuevo ||
       !activo.cantidad ||
-      activo.createdBy == localStorage.getItem('role') ||
+      activo.createdBy === '' ||
       activo.cantidad < 1
     ) {
       toast.error('Por favor complete todos los campos obligatorios.');
       return;
     }
 
+    const fechaIngreso = moment().tz('America/La_Paz').toISOString(); // Genera la fecha y hora en tiempo real
+
     setActivosList([...activosList, {
       ...activo,
       costo: parseFloat(activo.costo),
       cantidad: parseInt(activo.cantidad, 10),
-      fechaIngreso: moment(activo.fechaIngreso).tz('America/La_Paz').toISOString()
+      fechaIngreso, // Usa la fecha generada en tiempo real
+      ordenCompra: uploadedFileUrl || activo.ordenCompra // Usa la URL subida o la existente
     }]);
+
+    // Limpiar el formulario después de agregar un activo
     setActivo({
       fkPartida: '',
       nombre: '',
       descripcion: '',
-      fechaIngreso: todayDate,
+      fechaIngreso: '',
       costo: '',
       estado: '',
       codigoNuevo: '',
-      ordenCompra: activo.ordenCompra,
+      ordenCompra: uploadedFileUrl || '', // Mantén la URL para los próximos registros
       createdBy: localStorage.getItem('role'),
       cantidad: 1,
     });
+
     setIsFileUploaded(false);
   };
 
   const handleEditActivo = (index) => {
     const activoToEdit = activosList[index];
     setActivo({
-      ...activoToEdit,
-      fechaIngreso: moment(activoToEdit.fechaIngreso).format('YYYY-MM-DD')
+      ...activoToEdit
     });
     setActivosList(activosList.filter((_, i) => i !== index));
   };
@@ -172,7 +178,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
     }
 
     try {
-      await axios.post(`${apiUrl}/activo-modelo`, { activos: activosList });
+      await axios.post(`${apiUrl}/activo-modelo`, activosList); // Envía el array de objetos como el cuerpo de la solicitud POST
       toast.success('Activos registrados exitosamente');
       onSave();
       onClose();
@@ -193,13 +199,13 @@ const RegisterActivos = ({ onClose, onSave }) => {
           <RiCloseLine />
         </button>
         <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-          Registrar <span className="text-primary">Activo</span>
+          Registrar <span className="text-primary">Activos</span>
         </h1>
-        {isFileUploaded ? (
+        {isFileUploaded || uploadedFileUrl ? (
           <div className="mb-4">
             <label className="flex flex-col text-white">
               Orden de Compra:
-              <a href={filePreview} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+              <a href={uploadedFileUrl || filePreview} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
                 Ver archivo subido
               </a>
               <button
@@ -226,17 +232,23 @@ const RegisterActivos = ({ onClose, onSave }) => {
                 type="file"
                 onChange={handleFileChange}
                 className="hidden"
-                disabled={isFileUploaded}
+                disabled={isFileUploaded || uploadedFileUrl}
               />
               {filePreview ? (
                 <div>
-                  <img src={filePreview} alt="Vista previa del archivo" className="mx-auto mb-4 max-h-48" />
+                  {filePreview.startsWith('http') ? (
+                    <a href={filePreview} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                      Ver archivo subido
+                    </a>
+                  ) : (
+                    <img src={filePreview} alt="Vista previa del archivo" className="mx-auto mb-4 max-h-48" />
+                  )}
                 </div>
               ) : (
                 <span>Arrastra y suelta un archivo aquí, o haz clic para seleccionar uno.</span>
               )}
             </div>
-            {!isFileUploaded && (
+            {!isFileUploaded && !uploadedFileUrl && (
               <button
                 type="button"
                 onClick={handleUpload}
@@ -289,16 +301,6 @@ const RegisterActivos = ({ onClose, onSave }) => {
                 className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
               />
             </label>
-            <label className="flex flex-col text-white">
-              Fecha de Ingreso:
-              <input
-                type="date"
-                name="fechaIngreso"
-                value={activo.fechaIngreso}
-                onChange={handleInputChange}
-                className="py-2 pl-4 pr-4 bg-secondary-900 outline-none rounded-lg text-black"
-              />
-            </label>
           </div>
           <div className="col-span-1">
             <label className="flex flex-col text-white">
@@ -314,7 +316,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
               />
             </label>
             <label className="flex flex-col text-white">
-              Valor/Costo:
+              Valor/Costo Unitario:
               <input
                 type="number"
                 name="costo"
@@ -350,6 +352,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
               />
             </label>
           </div>
+          
           <div className="col-span-1 flex flex-col justify-end items-center">
             <button
               type="button"
@@ -390,7 +393,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
                       <td className="py-1 px-2 lg:px-6">{partidas.find(partida => partida.id === activo.fkPartida)?.nombre || ''}</td>
                       <td className="py-1 px-2 lg:px-6">{activo.nombre}</td>
                       <td className="py-1 px-2 lg:px-6">{activo.descripcion}</td>
-                      <td className="py-1 px-2 lg:px-6">{new Date(activo.fechaIngreso).toLocaleDateString()}</td>
+                      <td className="py-1 px-2 lg:px-6">{new Date(activo.fechaIngreso).toLocaleString()}</td>
                       <td className="py-1 px-2 lg:px-6">{activo.cantidad}</td>
                       <td className="py-1 px-2 lg:px-6">{activo.costo} Bs</td>
                       <td className="py-1 px-2 lg:px-6">{activo.estado}</td>

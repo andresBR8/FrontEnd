@@ -1,112 +1,99 @@
 import React, { useState, useEffect } from "react";
-import axios from 'axios';
-import { Button, Modal, TextField, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { RiAddLine, RiDeleteBinLine, RiDownloadLine, RiSearchLine } from 'react-icons/ri';
-import Swal from 'sweetalert2';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import axios from "axios";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { RiSearchLine, RiDownloadLine, RiCheckLine, RiCloseLine } from "react-icons/ri";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { Bar } from "react-chartjs-2";
 
-const Baja = () => {
+const apiUrl = import.meta.env.VITE_API_URL;
+
+const Bajas = () => {
+  const [modelos, setModelos] = useState([]);
+  const [filteredModelos, setFilteredModelos] = useState([]);
+  const [selectedUnidad, setSelectedUnidad] = useState(null);
   const [bajas, setBajas] = useState([]);
-  const [activos, setActivos] = useState([]);
-  const [filteredActivos, setFilteredActivos] = useState([]);
-  const [newBaja, setNewBaja] = useState({
-    fkActivoUnidad: '',
-    fecha: new Date(),
-    motivo: '',
-  });
-  const [openModal, setOpenModal] = useState(false);
-  const [editBaja, setEditBaja] = useState(null);
-  const [filtroModelo, setFiltroModelo] = useState('');
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const [isAdmin, setIsAdmin] = useState(false); // Suponiendo que hay una forma de identificar si es admin
+  const [contador, setContador] = useState({});
+
+  // Calcular el tiempo restante hasta la depreciación automática anual
+  const calculateTimeLeft = () => {
+    const now = new Date();
+    const nextReset = new Date(now.getFullYear() + 1, 0, 1);
+    const difference = nextReset - now;
+    return difference > 0
+      ? {
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        }
+      : {};
+  };
 
   useEffect(() => {
-    const fetchBajas = async () => {
-      try {
-        const response = await axios.get(`${apiUrl}/baja`);
-        setBajas(response.data.data);
-      } catch (error) {
-        handleError(error, "Error al obtener las bajas.");
-      }
-    };
+    fetchData();
+    setContador(calculateTimeLeft());
+    const timer = setInterval(() => setContador(calculateTimeLeft()), 1000);
+    return () => clearInterval(timer); // Limpia el temporizador cuando el componente se desmonta
+  }, []);
 
-    const fetchAssets = async () => {
-      try {
-        const response = await axios.get(`${apiUrl}/activo-unidad`);
-        setActivos(response.data.data);
-        setFilteredActivos(response.data.data);
-      } catch (error) {
-        handleError(error, "Error al obtener los activos.");
-      }
-    };
-
-    fetchBajas();
-    fetchAssets();
-  }, [apiUrl]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewBaja({ ...newBaja, [name]: value });
-  };
-
-  const handleAddBaja = async (e) => {
-    e.preventDefault();
+  const fetchData = async () => {
     try {
-      const response = await axios.post(`${apiUrl}/baja`, newBaja);
-      setBajas([...bajas, response.data]);
-      Swal.fire({
-        title: 'Baja agregada!',
-        text: 'La baja ha sido añadida con éxito.',
-        icon: 'success',
-        confirmButtonText: 'Aceptar'
-      });
-      setNewBaja({ fkActivoUnidad: '', fecha: new Date(), motivo: '' });
+      const modelosResponse = await axios.get(`${apiUrl}/activo-modelo`);
+      setModelos(modelosResponse.data.data);
+      setFilteredModelos(modelosResponse.data.data);
+
+      const bajasResponse = await axios.get(`${apiUrl}/baja`);
+      setBajas(bajasResponse.data.data);
+
+      // Setear isAdmin en base a la autenticación (suponiendo que hay una API que lo determina)
+      // setIsAdmin(chequeoDeAdmin());
     } catch (error) {
-      handleError(error, "Error al agregar la baja.");
+      console.error("Error fetching data:", error);
     }
   };
 
-  const handleEditBaja = (id) => {
-    const baja = bajas.find(b => b.id === id);
-    setEditBaja(baja);
-    setOpenModal(true);
+  const handleFiltroModeloChange = (e) => {
+    setFilteredModelos(
+      modelos.filter((modelo) =>
+        modelo.nombre.toLowerCase().includes(e.target.value.toLowerCase())
+      )
+    );
   };
 
-  const handleUpdateBaja = async () => {
+  const handleSolicitarBaja = async () => {
+    if (!selectedUnidad) {
+      toast.warning("Por favor, seleccione una unidad para dar de baja.");
+      return;
+    }
+
+    const solicitud = {
+      fkActivoUnidad: selectedUnidad.id,
+      fecha: new Date().toISOString(),
+      motivo: "Motivo de la baja",
+    };
+
     try {
-      await axios.put(`${apiUrl}/baja/${editBaja.id}`, editBaja);
-      setBajas(bajas.map(b => (b.id === editBaja.id ? editBaja : b)));
-      toast.success("Baja actualizada correctamente.");
-      setOpenModal(false);
-      setEditBaja(null);
+      await axios.post(`${apiUrl}/baja`, solicitud);
+      toast.success(`Baja de la unidad ${selectedUnidad.codigo} solicitada con éxito.`);
+      fetchData(); 
     } catch (error) {
-      handleError(error, "Error al actualizar la baja.");
+      console.error("Error solicitando baja:", error);
+      toast.error(`No se pudo solicitar la baja de la unidad ${selectedUnidad.codigo}.`);
     }
   };
 
-  const handleDeleteBaja = async (id) => {
-    const result = await Swal.fire({
-      title: '¿Está seguro?',
-      text: "Se eliminará la baja seleccionada.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
-    });
-
-    if (result.isConfirmed) {
-      try {
-        await axios.delete(`${apiUrl}/baja/${id}`);
-        setBajas(bajas.filter(b => b.id !== id));
-        toast.success("Baja eliminada correctamente.");
-      } catch (error) {
-        handleError(error, "Error al eliminar la baja.");
-      }
+  const handleAprobarBaja = async (id, aprobar) => {
+    try {
+      await axios.patch(`${apiUrl}/baja/${id}/aprobar`, { administradorId: "idAdmin", aprobar });
+      toast.success(`Baja ${aprobar ? "aprobada" : "rechazada"} con éxito.`);
+      fetchData(); // Actualizar las bajas
+    } catch (error) {
+      console.error("Error aprobando/rechazando baja:", error);
+      toast.error("No se pudo procesar la solicitud.");
     }
   };
 
@@ -114,218 +101,168 @@ const Baja = () => {
     const doc = new jsPDF();
     doc.text("Reporte de Bajas", 20, 10);
     doc.autoTable({
-      head: [['ID', 'Fecha', 'Motivo', 'Activo']],
-      body: bajas.map(baja => [
+      head: [["ID", "Fecha", "Unidad", "Motivo", "Estado"]],
+      body: bajas.map((baja) => [
         baja.id,
         new Date(baja.fecha).toLocaleDateString(),
+        baja.activoUnidad.codigo,
         baja.motivo,
-        baja.activoUnidad?.codigo || 'N/A'
-      ])
+        baja.estado,
+      ]),
     });
-    doc.save('reporte_bajas.pdf');
+    doc.save("reporte_bajas.pdf");
   };
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(bajas.map(baja => ({
-      ID: baja.id,
-      Fecha: new Date(baja.fecha).toLocaleDateString(),
-      Motivo: baja.motivo,
-      Activo: baja.activoUnidad?.codigo || 'N/A'
-    })));
+    const worksheet = XLSX.utils.json_to_sheet(
+      bajas.map((baja) => ({
+        ID: baja.id,
+        Fecha: new Date(baja.fecha).toLocaleDateString(),
+        Unidad: baja.activoUnidad.codigo,
+        Motivo: baja.motivo,
+        Estado: baja.estado,
+      }))
+    );
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Bajas');
-    XLSX.writeFile(workbook, 'reporte_bajas.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Bajas");
+    XLSX.writeFile(workbook, "reporte_bajas.xlsx");
   };
 
-  const handleFiltroModeloChange = (e) => {
-    setFiltroModelo(e.target.value);
-    setFilteredActivos(activos.filter(modelo => modelo.codigo.toLowerCase().includes(e.target.value.toLowerCase())));
+  const data = {
+    labels: bajas.map((baja) => baja.activoUnidad.codigo),
+    datasets: [
+      {
+        label: "Estado de las Bajas",
+        data: bajas.map((baja) => baja.estado === "APROBADA" ? 1 : 0),
+        backgroundColor: "rgba(75, 192, 192, 0.6)",
+      },
+    ],
   };
 
-  const handleError = (error, message) => {
-    if (error.response) {
-      console.error('Error data:', error.response.data);
-      console.error('Error status:', error.response.status);
-      console.error('Error headers:', error.response.headers);
-      toast.error(`${message}: ${error.response.data.message || error.response.status}`);
-    } else if (error.request) {
-      console.error('Error request:', error.request);
-      toast.error(`${message}: No se recibió respuesta del servidor.`);
-    } else {
-      console.error('Error message:', error.message);
-      toast.error(`${message}: ${error.message}`);
-    }
+  const options = {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
   };
 
   return (
-    <div className="min-h-screen p-4 flex flex-col items-center">
-      <div className="bg-secondary-100 p-8 rounded-xl shadow-2xl w-full lg:w-3/4">
-        <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-          Gestión de Bajas
+    <div className="p-4 flex flex-col lg:flex-row justify-between">
+      {/* Sección de selección de unidad y solicitud de baja */}
+      <div className="bg-secondary-100 p-8 rounded-3xl shadow-2xl lg:w-2/5">
+        <h1 className="text-3xl text-center uppercase font-bold tracking-[5px] text-emi_amarillo mb-8">
+          Solicitar <span className="text-white">Baja de Unidad</span>
         </h1>
-        <form className="mb-8 flex flex-col gap-4" onSubmit={handleAddBaja}>
-          <div className="relative mb-4">
-            <RiSearchLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input 
-              type="text" 
-              className="py-3 pl-10 pr-4 bg-white w-full outline-none rounded-lg text-emi_azul"
-              placeholder="Buscar activo..." 
-              value={filtroModelo} 
-              onChange={handleFiltroModeloChange} 
-            />
-            <div className="absolute w-full mt-1 z-10 bg-white shadow-md max-h-60 overflow-auto rounded-lg">
-              {filteredActivos.map(asset => (
-                <div 
-                  key={asset.id} 
-                  className="text-emi_azul p-2 cursor-pointer hover:bg-gray-200"
-                  onClick={() => setNewBaja({ ...newBaja, fkActivoUnidad: asset.id })}
-                >
-                  {asset.codigo} - {asset.activoModelo.nombre}
-                </div>
-              ))}
+        
+        <input
+          type="text"
+          className="mb-4 p-2 w-full rounded-lg bg-white text-emi_azul"
+          placeholder="Buscar modelo por nombre..."
+          onChange={handleFiltroModeloChange}
+        />
+        <div className="max-h-60 overflow-auto bg-white p-4 rounded-lg">
+          {filteredModelos.map((modelo) => (
+            <div key={modelo.id} className="mb-4">
+              <h4 className="text-emi_amarillo font-bold">{modelo.nombre}</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                {modelo.activoUnidades.map((unidad) => (
+                  <div
+                    key={unidad.id}
+                    className={`p-2 rounded-lg cursor-pointer ${
+                      selectedUnidad === unidad ? "bg-emi_azul text-white" : "bg-white text-emi_azul"
+                    }`}
+                    onClick={() => setSelectedUnidad(unidad)}
+                  >
+                    {unidad.codigo}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-          <DatePicker
-            selected={newBaja.fecha}
-            onChange={(date) => setNewBaja({ ...newBaja, fecha: date })}
-            className="py-3 px-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
-            required
-          />
-          <TextField
-            type="text"
-            name="motivo"
-            label="Motivo"
-            value={newBaja.motivo}
-            onChange={handleInputChange}
-            variant="outlined"
-            fullWidth
-            required
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            className="uppercase font-bold text-sm w-full py-3 px-4 mt-4 bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
-            startIcon={<RiAddLine />}
-          >
-            Agregar Baja
-          </Button>
-        </form>
-        <div className="flex gap-4 mb-8">
-          <Button
-            onClick={exportToPDF}
-            variant="contained"
-            color="primary"
-            startIcon={<RiDownloadLine />}
-            className="bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
-          >
-            Exportar PDF
-          </Button>
-          <Button
-            onClick={exportToExcel}
-            variant="contained"
-            color="secondary"
-            startIcon={<RiDownloadLine />}
-            className="bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
-          >
-            Exportar Excel
-          </Button>
+          ))}
         </div>
-        <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+        <button
+          type="button"
+          className="mt-4 bg-emi_amarillo text-emi_azul uppercase font-bold text-sm w-full py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors"
+          onClick={handleSolicitarBaja}
+        >
+          Solicitar Baja
+        </button>
+      </div>
+
+      {/* Sección de listado de bajas y acciones */}
+      <div className="bg-white p-8 rounded-3xl shadow-2xl lg:w-3/5 mt-4 lg:mt-0">
+        <h2 className="text-2xl text-center font-bold text-emi_amarillo mb-4">Bajas Registradas</h2>
+        <div className="overflow-auto max-h-60 mb-4">
+          <table className="w-full text-left border-collapse">
+            <thead>
               <tr>
-                <th scope="col" className="py-3 px-6">ID</th>
-                <th scope="col" className="py-3 px-6">Fecha</th>
-                <th scope="col" className="py-3 px-6">Motivo</th>
-                <th scope="col" className="py-3 px-6">Activo</th>
-                <th scope="col" className="py-3 px-6">Acciones</th>
+                <th className="border-b-2 border-emi_amarillo p-2">ID</th>
+                <th className="border-b-2 border-emi_amarillo p-2">Fecha</th>
+                <th className="border-b-2 border-emi_amarillo p-2">Unidad</th>
+                <th className="border-b-2 border-emi_amarillo p-2">Motivo</th>
+                <th className="border-b-2 border-emi_amarillo p-2">Estado</th>
+                {isAdmin && <th className="border-b-2 border-emi_amarillo p-2">Acciones</th>}
               </tr>
             </thead>
             <tbody>
-              {bajas.length > 0 ? (
-                bajas.map((baja) => (
-                  <tr key={baja.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                    <td className="py-1 px-2 lg:px-6">{baja.id}</td>
-                    <td className="py-1 px-2 lg:px-6">{new Date(baja.fecha).toLocaleDateString()}</td>
-                    <td className="py-1 px-2 lg:px-6">{baja.motivo}</td>
-                    <td className="py-1 px-2 lg:px-6">{baja.activoUnidad?.codigo || 'N/A'}</td>
-                    <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
-                      <Button variant="contained" color="primary" onClick={() => handleEditBaja(baja.id)}>
-                        <RiAddLine />
-                      </Button>
-                      <Button variant="contained" color="secondary" onClick={() => handleDeleteBaja(baja.id)}>
-                        <RiDeleteBinLine />
-                      </Button>
+              {bajas.map((baja) => (
+                <tr key={baja.id}>
+                  <td className="border-b border-gray-300 p-2">{baja.id}</td>
+                  <td className="border-b border-gray-300 p-2">{new Date(baja.fecha).toLocaleDateString()}</td>
+                  <td className="border-b border-gray-300 p-2">{baja.activoUnidad.codigo}</td>
+                  <td className="border-b border-gray-300 p-2">{baja.motivo}</td>
+                  <td className={`border-b border-gray-300 p-2 ${baja.estado === 'APROBADA' ? 'text-green-600' : baja.estado === 'RECHAZADA' ? 'text-red-600' : 'text-yellow-600'}`}>
+                    {baja.estado}
+                  </td>
+                  {isAdmin && baja.estado === "PENDIENTE" && (
+                    <td className="border-b border-gray-300 p-2 flex">
+                      <button
+                        onClick={() => handleAprobarBaja(baja.id, true)}
+                        className="text-green-500 hover:text-green-700 mr-2"
+                      >
+                        <RiCheckLine size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleAprobarBaja(baja.id, false)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <RiCloseLine size={20} />
+                      </button>
                     </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="text-center py-4">No hay datos disponibles</td>
+                  )}
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-        <ToastContainer />
+
+        <div className="w-full h-96">
+          <Bar data={data} options={options} />
+        </div>
+
+        <div className="flex justify-around mt-8">
+          <button
+            type="button"
+            className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors"
+            onClick={exportToPDF}
+          >
+            Exportar PDF
+          </button>
+          <button
+            type="button"
+            className="bg-emi_amarillo text-emi_azul uppercase font-bold text-sm py-3 px-4 rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors"
+            onClick={exportToExcel}
+          >
+            Exportar Excel
+          </button>
+        </div>
       </div>
 
-      <Modal open={openModal} onClose={() => setOpenModal(false)}>
-        <div className="bg-secondary-100 p-8 rounded-xl shadow-2xl w-full lg:w-1/2 mx-auto mt-20">
-          <h2 className="text-2xl text-center uppercase font-bold tracking-[5px] text-white mb-8">
-            Editar Baja
-          </h2>
-          {editBaja && (
-            <>
-              <FormControl variant="outlined" fullWidth required>
-                <InputLabel>Unidad de Activo</InputLabel>
-                <Select
-                  name="fkActivoUnidad"
-                  value={editBaja.fkActivoUnidad}
-                  onChange={(e) => setEditBaja({ ...editBaja, fkActivoUnidad: e.target.value })}
-                  label="Unidad de Activo"
-                >
-                  <MenuItem value="">
-                    <em>Seleccione Unidad de Activo</em>
-                  </MenuItem>
-                  {activos.map(asset => (
-                    <MenuItem key={asset.id} value={asset.id}>
-                      {asset.codigo} - {asset.activoModelo.nombre}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <DatePicker
-                selected={new Date(editBaja.fecha)}
-                onChange={(date) => setEditBaja({ ...editBaja, fecha: date })}
-                className="py-3 px-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul mt-4"
-                required
-              />
-              <TextField
-                type="text"
-                name="motivo"
-                label="Motivo"
-                value={editBaja.motivo}
-                onChange={(e) => setEditBaja({ ...editBaja, motivo: e.target.value })}
-                variant="outlined"
-                fullWidth
-                required
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                className="uppercase font-bold text-sm w-full py-3 px-4 mt-4 bg-emi_azul text-emi_amarillo hover:bg-black transition-colors"
-                onClick={handleUpdateBaja}
-              >
-                Actualizar Baja
-              </Button>
-            </>
-          )}
-        </div>
-      </Modal>
+      <ToastContainer />
     </div>
   );
 };
 
-export default Baja;
+export default Bajas;

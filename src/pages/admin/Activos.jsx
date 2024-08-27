@@ -11,7 +11,8 @@ import {
   RiQrScan2Line,
 } from "react-icons/ri";
 import RegisterActivos from "./RegisterActivos";
-import SeguimientoActivo from "./SeguimientoActivo";  // Importa el componente de seguimiento
+import SeguimientoActivo from "./SeguimientoActivo";
+import ReasignarActivos from "./ReasignarActivos";
 import Modal from "react-modal";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
@@ -35,9 +36,10 @@ const Activos = () => {
   const [paginaActual, setPaginaActual] = useState(0);
   const [activosPorPagina] = useState(10);
   const [escaneoActivo, setEscaneoActivo] = useState(true);
-  const [unidadIdSeguimiento, setUnidadIdSeguimiento] = useState(null);  // Nueva variable de estado para el ID de la unidad a seguir
+  const [unidadIdSeguimiento, setUnidadIdSeguimiento] = useState(null);
+  const [unidadIdReasignacion, setUnidadIdReasignacion] = useState(null);  // Nueva variable de estado para el ID de la unidad a reasignar
   const navigate = useNavigate();
-  
+
   const apiUrl = import.meta.env.VITE_API_URL;
 
   const [modalStyles, setModalStyles] = useState({
@@ -62,7 +64,6 @@ const Activos = () => {
   });
 
   const updateModalStyles = () => {
-    console.log('Window innerWidth:', window.innerWidth);
     setModalStyles(prevStyles => ({
       ...prevStyles,
       content: {
@@ -162,7 +163,7 @@ const Activos = () => {
     setActivos((prevActivos) =>
       [...prevActivos].sort((a, b) => {
         if (campo === "fechaIngreso") {
-          return esAsc ? new Date(a[campo]) - new Date(b[campo]) : new Date(b[campo]) - new Date(a[campo]);
+          return esAsc ? new Date(a[campo]) - new Date(b[campo]) : new Date(b[campo]) - a[campo];
         } else if (typeof a[campo] === "string") {
           return esAsc ? a[campo].localeCompare(b[campo]) : b[campo].localeCompare(a[campo]);
         } else {
@@ -180,30 +181,30 @@ const Activos = () => {
   };
 
   const manejarAsignacion = (id, asignado) => {
-    const ruta = asignado ? "/reasignacion" : "/asignar-activo";
-    navigate(`${ruta}/${id}`);
+    if (asignado) {
+      setUnidadIdReasignacion(id);
+    } else {
+      navigate(`/asignar-activo/${id}`);
+    }
   };
 
   const manejarSeguimiento = (id) => {
-    setUnidadIdSeguimiento(id);  // Establece el ID de la unidad para seguimiento
+    setUnidadIdSeguimiento(id);
   };
 
   const handleScan = (data) => {
     if (data && data.text && escaneoActivo) {
-      setEscaneoActivo(false); // Detener el escaneo
+      setEscaneoActivo(false);
 
       let codigo = "";
 
-      // Identificar el formato del QR
       if (data.text.includes("Activo ID:")) {
-        // Nuevo formato
         const regex = /Código:\s*(\S+)/;
         const match = data.text.match(regex);
         if (match) {
           codigo = match[1];
         }
       } else {
-        // Formato antiguo
         codigo = data.text.split(" ")[0];
       }
 
@@ -223,13 +224,13 @@ const Activos = () => {
       } else {
         toast.error("Formato de QR no reconocido.");
       }
-      setEscaneoActivo(true); // Reanudar el escaneo
+      setEscaneoActivo(true);
     }
   };
 
   const handleError = (error) => {
     console.error("Error al escanear el QR:", error);
-    if (escaneoActivo) { // Evitar múltiples mensajes de error
+    if (escaneoActivo) {
       toast.error("Error al escanear el QR.");
     }
   };
@@ -271,7 +272,7 @@ const Activos = () => {
           <button
             onClick={() => {
               setQrModalAbierto(true);
-              setEscaneoActivo(true); // Reanudar el escaneo al abrir el modal
+              setEscaneoActivo(true);
             }}
             className="ml-2 bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors"
           >
@@ -293,7 +294,7 @@ const Activos = () => {
             onError={handleError}
             onScan={handleScan}
             style={{ width: "100%" }}
-            facingMode="user" // Usar la cámara delantera
+            facingMode="user"
           />
           <div className="mt-4">
             <button
@@ -304,6 +305,13 @@ const Activos = () => {
             </button>
           </div>
         </div>
+      </Modal>
+      <Modal isOpen={unidadIdReasignacion !== null} onRequestClose={() => setUnidadIdReasignacion(null)} style={modalStyles}>
+        <ReasignarActivos
+          activoUnidadId={unidadIdReasignacion}
+          onClose={() => setUnidadIdReasignacion(null)}
+          onSave={obtenerActivos}
+        />
       </Modal>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-emi_azul">
@@ -397,8 +405,8 @@ const Activos = () => {
                                     </span>
                                   ) : (
                                     <span className="flex items-center">
-                                      <RiAddLine size="1.5em" className="mr-1" />
-                                      Asignar
+                                      
+                                      
                                     </span>
                                   )}
                                 </button>
@@ -436,7 +444,7 @@ const Activos = () => {
           nextClassName={"mx-1 px-3 py-1 rounded-lg bg-white text-emi_azul border border-emi_azul"}
         />
       </div>
-      <SeguimientoActivo unidadId={unidadIdSeguimiento} onClose={() => setUnidadIdSeguimiento(null)} /> {/* Integración del modal */}
+      <SeguimientoActivo unidadId={unidadIdSeguimiento} onClose={() => setUnidadIdSeguimiento(null)} />
       <ToastContainer />
     </div>
   );
