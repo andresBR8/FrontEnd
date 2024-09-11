@@ -31,6 +31,9 @@ import Depreciacion from "./pages/admin/Depreciacion";
 import Bajas from "./pages/admin/Bajas";
 import Mantenimientos from "./pages/admin/Mantenimientos";
 import Reportes from "./pages/admin/Reportes";
+import CambioEstado from "./pages/admin/Cambio_Estado";
+import DevolverActivos from "./pages/admin/DevolucionActivos";
+//import { SocketProvider } from './pages/admin/SocketManager';
 
 function App() {
   useEffect(() => {
@@ -82,6 +85,7 @@ function App() {
             <Route path="chat" element={<Chat />} />
             
             <Route path="activos" element={<Activos />} />
+            
             <Route path="unidades" element={<Unidades />} />
             <Route path="registrouser" element={<RegisterUser />} />
             <Route path="registroactivos" element={<RegisterActivos />} />
@@ -90,11 +94,13 @@ function App() {
             <Route path="registrounidades" element={<RegisterUnidades />} />
             
             <Route path="gestionaractivos" element={<GestionActivos />} />
+            <Route path="devolveractivos" element={<DevolverActivos />} />
             <Route path="calendario" element={<Calendario />} />
             <Route path='depreciacion' element={<Depreciacion />} />
             <Route path='bajas' element={<Bajas />} />
             <Route path='mantenimiento' element={<Mantenimientos />} />
             <Route path='reportes' element={<Reportes />} />
+            <Route path='estado' element={<CambioEstado />} />
           </Route>
         </Route>
         <Route path="*" element={<Error404 />} />

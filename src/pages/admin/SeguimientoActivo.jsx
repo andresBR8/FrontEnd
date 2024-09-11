@@ -1,21 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import Modal from 'react-modal';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import Modal from 'react-modal';
 import QRCode from 'qrcode.react';
-import { VerticalTimeline, VerticalTimelineElement } from 'react-vertical-timeline-component';
-import 'react-vertical-timeline-component/style.min.css';
-import {
-  RiArrowDownSLine,
-  RiArrowUpSLine,
-  RiUser3Line,
-  RiExchangeLine,
-  RiEdit2Line,
-  RiDeleteBin6Line,
-} from 'react-icons/ri';
-import Swal from 'sweetalert2';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import 'tailwindcss/tailwind.css';
+import { 
+  RiAlertLine,
+  RiLoader4Line,
+} from 'react-icons/ri';
+import ActivoWorkflow from './ActivoWorkflow';
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -23,122 +16,67 @@ const calculateDepreciation = (fechaIngreso, vidaUtil) => {
   const fechaIngresoDate = new Date(fechaIngreso);
   const currentDate = new Date();
   const yearsElapsed = currentDate.getFullYear() - fechaIngresoDate.getFullYear();
-  const depreciation = Math.min((yearsElapsed / vidaUtil) * 100, 100).toFixed(2);
-  return depreciation;
+  return Math.min((yearsElapsed / vidaUtil) * 100, 100).toFixed(2);
 };
 
-const SeguimientoActivo = ({ unidadId, onClose }) => {
+export default function SeguimientoActivo({ unidadId, onClose }) {
   const [activoData, setActivoData] = useState(null);
   const [eventos, setEventos] = useState([]);
-  const [modalStyles, setModalStyles] = useState({
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data } = await axios.get(`${apiUrl}/seguimiento/${unidadId}`);
+      setActivoData(data);
+
+      const eventosOrdenados = data.historialCambios
+        .sort((a, b) => new Date(a.fechaCambio) - new Date(b.fechaCambio));
+
+      setEventos(eventosOrdenados);
+    } catch (error) {
+      console.error('Error fetching activo data:', error);
+      toast.error('Error al cargar los datos del activo');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [unidadId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const modalStyles = {
     content: {
       top: '50%',
       left: '50%',
       right: 'auto',
       bottom: 'auto',
       marginRight: '-50%',
-      transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-39%, -50%)',
-      width: '90%',
-      maxWidth: '1000px',
+      transform: 'translate(-50%, -50%)',
+      width: '95%',
+      maxWidth: '1400px',
       height: '90%',
-      backgroundColor: 'rgba(255, 255, 255, 0.35)',
-      borderRadius: '50px',
-      padding: '2px',
-      overflow: 'auto', 
+      backgroundColor: 'white',
+      borderRadius: '20px',
+      padding: '20px',
+      overflow: 'auto',
     },
     overlay: {
       backgroundColor: 'rgba(0, 0, 0, 0.75)',
     },
-  });
-
-  const updateModalStyles = () => {
-    setModalStyles(prevStyles => ({
-      ...prevStyles,
-      content: {
-        ...prevStyles.content,
-        transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
-      }
-    }));
-  };
-
-  useEffect(() => {
-    window.addEventListener('resize', updateModalStyles);
-    return () => {
-      window.removeEventListener('resize', updateModalStyles);
-    };
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get(`${apiUrl}/reportes/seguimiento-activo/${unidadId}`);
-        const data = response.data.data;
-        setActivoData(data);
-
-        const eventos = [
-          {
-            fecha: data.activoUnidad.activoModelo.fechaIngreso,
-            tipo: 'Registro del Activo',
-            descripcion: `Activo registrado con el detalle: ${data.activoUnidad.activoModelo.descripcion}`,
-            icon: <RiArrowUpSLine />,
-            backgroundColor: '#4caf50',
-          },
-          ...data.activoUnidad.asignacionActivos.map(asignacion => ({
-            fecha: asignacion.asignacion.fechaAsignacion,
-            tipo: 'Asignación de Activo',
-            descripcion: `Asignado a: ${asignacion.asignacion.personal.nombre}, Cargo: ${asignacion.asignacion.personal.fkCargo}, Unidad: ${asignacion.asignacion.personal.fkUnidad}`,
-            icon: <RiUser3Line />,
-            backgroundColor: '#3f51b5',
-          })),
-          ...data.activoUnidad.depreciaciones.map(depreciacion => ({
-            fecha: depreciacion.fecha,
-            tipo: 'Depreciación del Activo',
-            descripcion: `Valor estimado actual: ${depreciacion.valor} Bs`,
-            icon: <RiArrowDownSLine />,
-            backgroundColor: '#f44336',
-          })),
-          ...data.activoUnidad.reasignaciones.map(reasignacion => ({
-            fecha: reasignacion.fechaReasignacion,
-            tipo: 'Reasignación de Activo',
-            descripcion: `Reasignado de: ${reasignacion.personalAnterior.nombre} a: ${reasignacion.personalNuevo.nombre}`,
-            icon: <RiExchangeLine />,
-            backgroundColor: '#ff9800',
-          })),
-        ];
-
-        setEventos(eventos);
-      } catch (error) {
-        console.error('Error fetching activo data:', error);
-      }
-    };
-    fetchData();
-  }, [unidadId]);
-
-  const handleEdit = (evento) => {
-    Swal.fire('Editar Evento', 'Funcionalidad de edición aquí', 'info');
-  };
-
-  const handleDelete = (evento) => {
-    Swal.fire({
-      title: '¿Estás seguro?',
-      text: '¡No podrás revertir esto!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, eliminarlo!',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        toast.success('Evento eliminado con éxito.');
-      }
-    });
   };
 
   return (
-    <Modal isOpen={Boolean(unidadId)} onRequestClose={onClose} style={modalStyles}>
+    <Modal 
+      isOpen={true}
+      onRequestClose={onClose}
+      style={modalStyles}
+      contentLabel="Seguimiento del Activo"
+    >
       <div className="p-4 bg-white">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-emi_azul">Seguimiento del Activo</h2>
+          <h2 className="text-2xl font-bold text-blue-800">Seguimiento del Activo</h2>
           {activoData && (
             <QRCode
               value={`Activo ID: ${activoData.activoUnidad.id}\nNombre: ${activoData.activoUnidad.activoModelo.nombre}\nDescripción: ${activoData.activoUnidad.activoModelo.descripcion}\nCódigo: ${activoData.activoUnidad.codigo}`}
@@ -146,66 +84,57 @@ const SeguimientoActivo = ({ unidadId, onClose }) => {
             />
           )}
         </div>
-        <div className="bg-white p-4 rounded shadow-lg mb-4 text-emi_azul">
-          {activoData ? (
+        <div className="bg-white p-4 rounded shadow-lg mb-4 text-blue-800">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-32">
+              <RiLoader4Line className="animate-spin text-blue-500 text-4xl" />
+            </div>
+          ) : activoData ? (
             <>
-              <div className="mb-4">
-                <p><strong>ID:</strong> {activoData.activoUnidad.id}</p>
-                <p><strong>Descripción:</strong> {activoData.activoUnidad.activoModelo.descripcion}</p>
-                <p><strong>Código:</strong> {activoData.activoUnidad.codigo}</p>
-                <p><strong>Estado:</strong> {activoData.activoUnidad.activoModelo.estado}</p>
-                <p><strong>Fecha de Ingreso:</strong> {new Date(activoData.activoUnidad.activoModelo.fechaIngreso).toLocaleDateString()}</p>
-                <p><strong>Costo:</strong> {activoData.activoUnidad.activoModelo.costo} Bs</p>
-                <p><strong>Vida Útil:</strong> {activoData.activoUnidad.activoModelo.partida.vidaUtil} años</p>
-                <p><strong>Depreciación Anual:</strong> {activoData.activoUnidad.activoModelo.partida.porcentajeDepreciacion}%</p>
-                <div className={`p-4 mt-2 ${calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil) > 80 ? 'bg-red-200' : 'bg-yellow-200'}`}>
-                  <p><strong>Depreciación Actual:</strong> {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil)}%</p>
-                  {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil) > 80 && (
-                    <p className="text-red-600"><strong>Alerta:</strong> Este activo está cerca de su vida útil.</p>
-                  )}
+              <div className={`mb-4 p-4 rounded ${activoData.activoUnidad.estadoCondicion === "BAJA" ? 'bg-red-100 border border-red-500' : 'bg-blue-100'}`}>
+                <h3 className="text-xl font-semibold mb-2">Información del Activo</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p><strong>ID:</strong> {activoData.activoUnidad.id}</p>
+                    <p><strong>Descripción:</strong> {activoData.activoUnidad.activoModelo.descripcion}</p>
+                    <p><strong>Código:</strong> {activoData.activoUnidad.codigo}</p>
+                    <p><strong>Estado Actual:</strong> {activoData.activoUnidad.estadoActual}</p>
+                    <p><strong>Condición:</strong> {activoData.activoUnidad.estadoCondicion}</p>
+                  </div>
+                  <div>
+                    <p><strong>Fecha de Ingreso:</strong> {new Date(activoData.activoUnidad.activoModelo.fechaIngreso).toLocaleString()}</p>
+                    <p><strong>Costo Actual:</strong> {activoData.activoUnidad.costoActual} Bs</p>
+                    <p><strong>Vida Útil:</strong> {activoData.activoUnidad.activoModelo.partida.vidaUtil} años</p>
+                    <p><strong>Depreciación Anual:</strong> {activoData.activoUnidad.activoModelo.partida.porcentajeDepreciacion}%</p>
+                    <p><strong>Depreciación Actual:</strong> {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil)}%</p>
+                  </div>
                 </div>
+                {activoData.activoUnidad.estadoCondicion === "BAJA" && (
+                  <p className="text-red-600 font-bold mt-2"><RiAlertLine className="inline-block mr-2" />Este activo está dado de baja.</p>
+                )}
+                {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil) > 80 && (
+                  <p className="text-yellow-600 font-bold mt-2"><RiAlertLine className="inline-block mr-2" />Este activo está cerca de su vida útil.</p>
+                )}
               </div>
-              <div className="h-100 overflow-y-auto bg-white p-4 rounded shadow-lg">
-                <VerticalTimeline>
-                  {eventos.map((evento, index) => (
-                    <VerticalTimelineElement
-                      key={index}
-                      date={new Date(evento.fecha).toLocaleDateString()}
-                      iconStyle={{ background: evento.backgroundColor, color: '#fff' }}
-                      icon={evento.icon}
-                    >
-                      <h3 className="vertical-timeline-element-title">{evento.tipo}</h3>
-                      <p>{evento.descripcion}</p>
-                      <div className="flex justify-end space-x-2 mt-2">
-                        <button
-                          onClick={() => handleEdit(evento)}
-                          className="text-emi_azul hover:text-blue-700"
-                        >
-                          <RiEdit2Line size="1.2em" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(evento)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <RiDeleteBin6Line size="1.2em" />
-                        </button>
-                      </div>
-                    </VerticalTimelineElement>
-                  ))}
-                </VerticalTimeline>
+              <div className="overflow-x-auto">
+                <div className="inline-block min-w-full">
+                  <h3 className="text-xl font-semibold mb-4">Historial de Eventos</h3>
+                  <ActivoWorkflow eventos={eventos} />
+                </div>
               </div>
             </>
           ) : (
-            <p>Cargando...</p>
+            <p>No hay datos disponibles</p>
           )}
         </div>
-        <button onClick={onClose} className="mt-4 bg-emi_azul text-emi_amarillo py-2 px-4 rounded hover:bg-black transition-colors">
+        <button 
+          onClick={onClose}
+          className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
+        >
           Cerrar
         </button>
-        <ToastContainer />
       </div>
+      <ToastContainer />
     </Modal>
   );
-};
-
-export default SeguimientoActivo;
+}

@@ -1,277 +1,386 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Swal from 'sweetalert2';
-import { RiEdit2Line, RiDeleteBin6Line } from "react-icons/ri";
-import RegisterUnidades from "./RegisterUnidades";
-import Modal from 'react-modal';
-import { Pie } from 'react-chartjs-2';
+import { RiFileUploadLine, RiFileExcelLine } from "react-icons/ri";
+import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
-import { io } from 'socket.io-client';
+import { CSVLink } from "react-csv";
+import ReactPaginate from 'react-paginate';
 
-Modal.setAppElement('#root');
-
-const Personal = () => {
-  const [unidades, setUnidades] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedUnidad, setSelectedUnidad] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+export default function Personal() {
+  const [personal, setPersonal] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [uploadResult, setUploadResult] = useState(null);
   const apiUrl = import.meta.env.VITE_API_URL;
   const itemsPerPage = 10;
 
-  const [modalStyles, setModalStyles] = useState({
-    content: {
-      top: '50%',
-      left: '50%',
-      right: 'auto',
-      bottom: 'auto',
-      marginRight: '-50%',
-      transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)',
-      backgroundColor: 'rgba(255, 255, 255, 0.35)',
-      borderRadius: '50px',
-      padding: '2px',
-      width: '90%',
-      maxWidth: '800px',
-      overflow: 'auto', 
-    },
-    overlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.75)'
-    }
-  });
-
-  const updateModalStyles = () => {
-    setModalStyles(prevStyles => ({
-      ...prevStyles,
-      content: {
-        ...prevStyles.content,
-        transform: window.innerWidth <= 1263 ? 'translate(-50%, -50%)' : 'translate(-35%, -50%)'
-      }
-    }));
-  };
-
-  useEffect(() => {
-    window.addEventListener('resize', updateModalStyles);
-    return () => {
-      window.removeEventListener('resize', updateModalStyles);
-    };
-  }, []);
-
-  const fetchUnidades = useCallback(async () => {
+  const fetchPersonal = useCallback(async () => {
+    setIsLoading(true);
     try {
       const response = await axios.get(`${apiUrl}/personal`);
-      setUnidades(response.data.data);
+      setPersonal(response.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
+      Swal.fire('Error', 'No se pudo cargar la lista de personal', 'error');
+    } finally {
+      setIsLoading(false);
     }
   }, [apiUrl]);
 
   useEffect(() => {
-    fetchUnidades();
+    fetchPersonal();
+  }, [fetchPersonal]);
 
-    const socket = io(apiUrl, {
-      withCredentials: true,
-    });
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-    socket.emit('setRole', localStorage.getItem('role'));
+    const formData = new FormData();
+    formData.append('file', file);
 
-    socket.on('personal-changed', () => {
-      fetchUnidades();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [apiUrl, fetchUnidades]);
-
-  const handleEdit = useCallback((unidad) => {
-    setSelectedUnidad(unidad);
-    setIsModalOpen(true);
-  }, []);
-
-  const handleAdd = useCallback(() => {
-    setSelectedUnidad({
-      id: '',
-      ci: '',
-      nombre: '',
-      fkCargo: '',
-      fkUnidad: ''
-    });
-    setIsModalOpen(true);
-  }, []);
-
-  const handleDelete = useCallback((id) => {
-    Swal.fire({
-      title: '¿Estás seguro?',
-      text: "¡No podrás revertir esto!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, eliminarlo!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        axios.delete(`${apiUrl}/personal/${id}`)
-          .then(() => {
-            Swal.fire('Eliminado!', 'El personal ha sido eliminado.', 'success');
-            fetchUnidades();
-          })
-          .catch(error => {
-            Swal.fire('Error!', 'No se pudo eliminar el personal.', 'error');
-          });
-      }
-    });
-  }, [apiUrl, fetchUnidades]);
-
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value.toLowerCase());
-  };
-
-  const filteredUnidades = useMemo(() => 
-    unidades.filter(unidad =>
-      unidad.nombre.toLowerCase().includes(searchTerm) ||
-      unidad.ci.toLowerCase().includes(searchTerm)
-    ),
-    [unidades, searchTerm]
-  );
-
-  const paginatedUnidades = useMemo(() => 
-    filteredUnidades.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage),
-    [filteredUnidades, currentPage, itemsPerPage]
-  );
-
-  const handlePageClick = (data) => {
-    setCurrentPage(data.selected);
-  };
-
-  // Datos para el gráfico de torta
-  const pieChartData = useMemo(() => {
-    const unidadNombres = [...new Set(unidades.map(unidad => unidad.unidad.nombre))];
-    const unidadCounts = unidadNombres.map(unidadNombre => (
-      unidades.filter(unidad => unidad.unidad.nombre === unidadNombre).length
-    ));
-    return {
-      labels: unidadNombres,
-      datasets: [{
-        data: unidadCounts,
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-          'rgba(255, 159, 64, 0.6)',
-          'rgba(199, 199, 199, 0.6)'
-        ],
-        borderColor: 'rgba(5, 68, 115, 1)',
-        borderWidth: 1
-      }]
-    };
-  }, [unidades]);
-
-  const pieChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      tooltip: {
-        callbacks: {
-          label: function(tooltipItem) {
-            return `${tooltipItem.label}: ${tooltipItem.raw}`;
-          }
-        }
-      }
+    try {
+      setIsLoading(true);
+      const response = await axios.post('http://localhost:3000/personal/upload-csv', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setUploadResult(response.data.resumen);
+      await fetchPersonal();
+      Swal.fire('Éxito', 'Archivo CSV procesado correctamente', 'success');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      Swal.fire('Error', 'No se pudo procesar el archivo CSV', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const filteredPersonal = useMemo(() => {
+    return personal.filter(p => 
+      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.ci.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.cargo.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.unidad.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [personal, searchTerm]);
+
+  const paginatedPersonal = useMemo(() => {
+    const startIndex = currentPage * itemsPerPage;
+    return filteredPersonal.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredPersonal, currentPage]);
+
+  const pageCount = Math.ceil(filteredPersonal.length / itemsPerPage);
+
+  const handlePageClick = (event) => {
+    setCurrentPage(event.selected);
+  };
+
+  const distribucionPersonalOption = useMemo(() => {
+    const unidades = {};
+    personal.forEach(p => {
+      if (unidades[p.unidad.nombre]) {
+        unidades[p.unidad.nombre]++;
+      } else {
+        unidades[p.unidad.nombre] = 1;
+      }
+    });
+
+    const data = Object.entries(unidades)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'vertical',
+        left: 10,
+        top: 'center',
+        type: 'scroll',
+        textStyle: {
+          fontSize: 12
+        }
+      },
+      series: [
+        {
+          name: 'Distribución de Personal',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['60%', '50%'],
+          avoidLabelOverlap: true,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: false,
+            position: 'center'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '18',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: data
+        }
+      ]
+    };
+  }, [personal]);
+
+  const activosVsInactivosOption = useMemo(() => {
+    const activos = personal.filter(p => p.activo).length;
+    const inactivos = personal.length - activos;
+
+    return {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'horizontal',
+        bottom: 10,
+        left: 'center',
+      },
+      series: [
+        {
+          name: 'Estado del Personal',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: false,
+            position: 'center'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '18',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: [
+            { value: activos, name: 'Activos' },
+            { value: inactivos, name: 'Inactivos' }
+          ]
+        }
+      ]
+    };
+  }, [personal]);
+
   return (
-    <div className="p-4 px-0 lg:px-0">
-      <div className="flex flex-col lg:flex-row justify-between items-center mb-8 space-y-4 lg:space-y-3">
-        <h1 className="text-2xl text-emi_azul font-bold">Gestión de Personal</h1>
-        <input 
-          type="text" 
-          placeholder="Buscar personal..." 
-          value={searchTerm} 
-          onChange={handleSearchChange}
-          className="text-sm p-2 text-emi_azul border-emi_azul border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emi_azul focus:border-transparent transition-colors"
-        />
-        <button onClick={handleAdd} className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-lg hover:bg-black transition-colors">
-          Agregar Personal
-        </button>
-      </div>
-      <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} style={modalStyles}>
-        <RegisterUnidades unidad={selectedUnidad} onClose={() => setIsModalOpen(false)} onSave={(data) => {
-          const method = data.id ? 'patch' : 'post';
-          const url = `${apiUrl}/personal/${data.id ? data.id : ''}`;
-          const payload = {
-            ci: data.ci,
-            nombre: data.nombre,
-            fkCargo: data.fkCargo,
-            fkUnidad: data.fkUnidad
-          };
-          axios({ method, url, data: payload })
-            .then(() => {
-              setIsModalOpen(false);
-              fetchUnidades(); // Refresca la lista después de guardar
-              Swal.fire('¡Éxito!', `El personal ha sido ${data.id ? 'actualizado' : 'registrado'} con éxito.`, 'success');
-            })
-            .catch(error => {
-              console.log('Error saving personal:', error);
-              Swal.fire('Error', error.message || 'Ocurrió un error al guardar el personal.', 'error');
-            });
-        }} />
-      </Modal>
-      <div className="overflow-x-auto relative shadow-md sm:rounded-lg mt-4 ">
-        <table className="w-full text-sm text-left text-emi_azul">
-          <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
-            <tr>
-              <th scope="col" className="py-2 px-2 lg:px-6">ID</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">CI</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Nombre</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Cargo</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Unidad</th>
-              <th scope="col" className="py-2 px-2 lg:px-6">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedUnidades.map((unidad) => (
-              <tr key={unidad.id} className="bg-white border-b dark:bg-white dark:border-emi_azul hover:bg-yellow-400 dark:hover:bg-emi_azul-900">
-                <td className="py-1 px-2 lg:px-6">{unidad.id}</td>
-                <td className="py-1 px-2 lg:px-6">{unidad.ci}</td>
-                <td className="py-1 px-2 lg:px-6">{unidad.nombre}</td>
-                <td className="py-1 px-2 lg:px-6">{unidad.cargo.nombre}</td>
-                <td className="py-1 px-2 lg:px-6">{unidad.unidad.nombre}</td>
-                <td className="py-1 px-2 lg:px-6 text-right space-x-4 lg:space-x-7">
-                  <button onClick={() => handleEdit(unidad)} className="font-medium text-emi_amarillo dark:text-black hover:underline">
-                    <RiEdit2Line size="1.5em" />
-                  </button>
-                  <button onClick={() => handleDelete(unidad.id)} className="font-medium text-red-600 dark:text-red-500 hover:underline">
-                    <RiDeleteBin6Line size="1.5em" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex justify-center mt-4 mb-4">
-        {Array.from({ length: Math.ceil(filteredUnidades.length / itemsPerPage) }, (_, index) => (
-          <button
-            key={index}
-            onClick={() => handlePageClick({ selected: index })}
-            className={`mx-1 px-3 py-1 rounded-lg ${currentPage === index ? 'bg-emi_azul text-white' : 'bg-white text-emi_azul border border-emi_azul'}`}
-          >
-            {index + 1}
-          </button>
-        ))}
-      </div>
-      <div className="mt-10">
-        <h2 className="text-xl text-emi_azul font-bold mb-4">Distribución de Personal por Unidad</h2>
-        <div className="w-full md:w-1/2 mx-auto">
-          <Pie data={pieChartData} options={pieChartOptions} />
+    <div className="p-4 bg-gray-100 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-emi_azul mb-4">Gestión de Personal</h1>
+        <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="flex-grow">
+            <input
+              type="text"
+              placeholder="Buscar personal..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            />
+          </div>
+          <div className="flex gap-2">
+            <CSVLink
+              data={personal}
+              filename={"personal.csv"}
+              className="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors inline-flex items-center"
+            >
+              <RiFileExcelLine className="mr-2" />
+              Exportar a CSV
+            </CSVLink>
+            <label className="bg-emi_azul text-emi_amarillo py-2 px-4 rounded-md hover:bg-black transition-colors inline-flex items-center cursor-pointer">
+              <RiFileUploadLine className="mr-2" />
+              Actualizar Personal
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
       </div>
+
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-emi_azul"></div>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white shadow-md rounded-lg overflow-hidden mb-8">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-emi_azul">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">ID</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">CI</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Nombre</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Cargo</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Unidad</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedPersonal.map((persona) => (
+                    <tr key={persona.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{persona.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{persona.ci}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{persona.nombre}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{persona.cargo.nombre}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{persona.unidad.nombre}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${persona.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {persona.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex justify-center mt-4 mb-8">
+            <ReactPaginate
+              previousLabel={"Anterior"}
+              nextLabel={"Siguiente"}
+              breakLabel={"..."}
+              pageCount={pageCount}
+              marginPagesDisplayed={2}
+              pageRangeDisplayed={5}
+              onPageChange={handlePageClick}
+              containerClassName={"pagination flex flex-wrap justify-center mt-4 mb-4"}
+              pageClassName={"m-1"}
+              pageLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
+              activeClassName={"bg-emi_azul text-white"}
+              previousClassName={"m-1"}
+              nextClassName={"m-1"}
+              previousLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
+              nextLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
+              disabledClassName={"opacity-50 cursor-not-allowed"}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-2 text-center">Distribución de Personal por Unidad</h3>
+              <ReactECharts 
+                option={distribucionPersonalOption} 
+                style={{ height: '400px' }} 
+                opts={{ renderer: 'svg' }}
+              />
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-2 text-center">Personal Activo vs Inactivo</h3>
+              <ReactECharts 
+                option={activosVsInactivosOption} 
+                style={{ height: '400px' }} 
+                opts={{ renderer: 'svg' }}
+              />
+            </div>
+          </div>
+
+          {uploadResult && (
+            <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+              <h2 className="text-2xl font-bold mb-4 text-emi_azul">Resumen de Actualización</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevos Personales</h3>
+                  <ul className="list-disc pl-5 text-emi_azul">
+                    {uploadResult.nuevosPersonales.map((persona, index) => (
+                      <li key={index}>{persona.nombre} (CI: {persona.ci})</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevos Cargos</h3>
+                  <ul className="list-disc pl-5 text-emi_azul">
+                    {uploadResult.nuevosCargos.map((cargo, index) => (
+                      <li key={index}>{cargo}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevas Unidades</h3>
+                  <ul className="list-disc pl-5 text-emi_azul">
+                    {uploadResult.nuevasUnidades.map((unidad, index) => (
+                      <li key={index}>{unidad}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Personal Inactivo</h3>
+                  <ul className="list-disc pl-5 text-emi_azul">
+                    {uploadResult.personalInactivo.map((persona, index) => (
+                      <li key={index}>{persona.nombre} (CI: {persona.ci}) - {persona.motivo}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Personal Actualizado</h3>
+                  <ul className="list-disc pl-5 text-emi_azul">
+                    {uploadResult.personalActualizado.map((persona, index) => (
+                      <li key={index}>
+                        {persona.nombre} (CI: {persona.ci})
+                        <ul className="list-circle pl-5">
+                          {persona.cambios.map((cambio, cambioIndex) => (
+                            <li key={cambioIndex}>{cambio}</li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-4">
+                <p><strong>Personal sin cambios:</strong> {uploadResult.personalSinCambios}</p>
+                <p><strong>Total procesados:</strong> {uploadResult.totalProcesados}</p>
+              </div>
+              {uploadResult.advertencias.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Advertencias</h3>
+                  <ul className="list-disc pl-5 text-emi_azul">
+                    {uploadResult.advertencias.map((advertencia, index) => (
+                      <li key={index}>{advertencia}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {uploadResult.errores.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Errores</h3>
+                  <ul className="list-disc pl-5 text-emi_azul">
+                    {uploadResult.errores.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
-};
-
-export default Personal;
+}
