@@ -15,6 +15,7 @@ export default function Personal() {
   const apiUrl = import.meta.env.VITE_API_URL;
   const itemsPerPage = 10;
 
+
   const fetchPersonal = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -41,7 +42,7 @@ export default function Personal() {
 
     try {
       setIsLoading(true);
-      const response = await axios.post('http://localhost:3000/personal/upload-csv', formData, {
+      const response = await axios.post(`${apiUrl}//personal/upload-csv`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
