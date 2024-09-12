@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useWebSocket } from '../../pages/admin/WebSocketContext.jsx';
 import Swal from "sweetalert2";
 import {
   RiEdit2Line,
@@ -9,21 +10,16 @@ import {
   RiRefreshLine,
   RiEyeLine,
   RiQrScan2Line,
-  RiWifiOffLine,
-  RiWifiLine,
 } from "react-icons/ri";
 import RegisterActivos from "./RegisterActivos";
 import SeguimientoActivo from "./SeguimientoActivo";
 import ReasignarActivos from "./ReasignarActivos";
 import Modal from "react-modal";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import QrScanner from "react-qr-scanner";
 import ReactPaginate from "react-paginate";
-import { getActivos, setActivos, getUnidades, setUnidades, addToQueue, getQueue, clearQueue } from "../../db";
-import { registerServiceWorker } from "../../serviceWorkerRegistration.js";
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 
@@ -48,12 +44,11 @@ export default function Activos() {
   const [cargando, setCargando] = useState(true);
   const navigate = useNavigate();
   const [unidadIdSeguimiento, setUnidadIdSeguimiento] = useState(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [estadoModalAbierto, setEstadoModalAbierto] = useState(false);
   const [activoUnidadSeleccionado, setActivoUnidadSeleccionado] = useState(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
+  const socket = useWebSocket();
 
   const [modalStyles, setModalStyles] = useState({
     content: {
@@ -70,7 +65,6 @@ export default function Activos() {
       maxWidth: "900px",
       overflow: "auto",
       maxHeight: "90vh",
-      
     },
     overlay: {
       backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -89,108 +83,128 @@ export default function Activos() {
   }, []);
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      sincronizarDatos();
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
     window.addEventListener("resize", updateModalStyles);
-
     updateModalStyles();
-    registerServiceWorker();
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
       window.removeEventListener("resize", updateModalStyles);
     };
   }, [updateModalStyles]);
 
-  const sincronizarDatos = async () => {
-    setIsSyncing(true);
-    try {
-      if (navigator.onLine) {
-        const queue = await getQueue();
-        for (const action of queue) {
-          switch (action.type) {
-            case 'add':
-              await axios.post(`${apiUrl}/activo-modelo`, action.data);
-              break;
-            case 'edit':
-              await axios.put(`${apiUrl}/activo-modelo/${action.data.id}`, action.data);
-              break;
-            case 'delete':
-              await axios.delete(`${apiUrl}/activo-modelo/${action.data.id}`);
-              break;
-          }
+  // Integración del WebSocket
+  const toastIdRef = useRef(null);
+
+  const handleActivoModeloChanged = useCallback((data) => {
+    console.log('Activo modelo changed:', data);
+    if (data && data.action) {
+      setActivos((prevActivos) => {
+        let updatedActivos;
+        switch (data.action) {
+          case 'created':
+            updatedActivos = [...prevActivos, data.activoModelo];
+            break;
+          case 'updated':
+          case 'change-estado':
+            updatedActivos = prevActivos.map(activo => {
+              if (activo.id === data.activoModelo.id) {
+                return {
+                  ...activo,
+                  ...data.activoModelo,
+                  activoUnidades: data.activoModelo.activoUnidades.map(nuevaUnidad => {
+                    const unidadExistente = activo.activoUnidades.find(u => u.id === nuevaUnidad.id);
+                    return unidadExistente ? { ...unidadExistente, ...nuevaUnidad } : nuevaUnidad;
+                  })
+                };
+              }
+              return activo;
+            });
+            break;
+          case 'deleted':
+            updatedActivos = prevActivos.filter(activo => activo.id !== data.activoModelo.id);
+            break;
+          default:
+            updatedActivos = prevActivos;
         }
-        await clearQueue();
+        return updatedActivos;
+      });
 
-        const response = await axios.get(`${apiUrl}/activo-modelo`);
-        const serverActivos = response.data.data;
-        setActivos(serverActivos);
-        await setActivos(serverActivos);
+      setUnidades((prevUnidades) => {
+        let updatedUnidades;
+        switch (data.action) {
+          case 'created':
+          case 'updated':
+          case 'change-estado':
+            updatedUnidades = prevUnidades.map(unidad => {
+              const nuevaUnidad = data.activoModelo.activoUnidades.find(u => u.id === unidad.id);
+              return nuevaUnidad ? { ...unidad, ...nuevaUnidad, modeloId: data.activoModelo.id } : unidad;
+            });
+            const nuevasUnidades = data.activoModelo.activoUnidades.filter(
+              nuevaUnidad => !prevUnidades.some(u => u.id === nuevaUnidad.id)
+            ).map(u => ({ ...u, modeloId: data.activoModelo.id }));
+            updatedUnidades = [...updatedUnidades, ...nuevasUnidades];
+            break;
+          case 'deleted':
+            updatedUnidades = prevUnidades.filter(unidad => unidad.modeloId !== data.activoModelo.id);
+            break;
+          default:
+            updatedUnidades = prevUnidades;
+        }
+        return updatedUnidades;
+      });
 
-        const updatedUnidades = serverActivos.flatMap(modelo =>
-          modelo.activoUnidades.map(unidad => ({
-            codigo: unidad.codigo,
-            modeloId: modelo.id,
-            ...unidad,
-          }))
-        );
-        setUnidades(updatedUnidades);
-        await setUnidades(updatedUnidades);
-
-        toast.success("Datos sincronizados correctamente");
-      } else {
-        toast.warn("No hay conexión a internet. Los datos se sincronizarán cuando vuelva la conexión.");
-      }
-    } catch (error) {
-      console.error("Error al sincronizar datos:", error);
-      toast.error("Error al sincronizar datos");
-    } finally {
-      setIsSyncing(false);
+      // Toast notification
+      setTimeout(() => {
+        if (toastIdRef.current) {
+          toast.dismiss(toastIdRef.current);
+        }
+        switch (data.action) {
+          case 'created':
+            toastIdRef.current = toast.success(`Nuevo activo modelo creado: ${data.activoModelo.nombre}`);
+            break;
+          case 'updated':
+            toastIdRef.current = toast.info(`Activo modelo actualizado: ${data.activoModelo.nombre}`);
+            break;
+          case 'deleted':
+            toastIdRef.current = toast.error(`Activo modelo eliminado: ${data.activoModelo.nombre}`);
+            break;
+          case 'change-estado':
+            const unidadCambiada = data.activoModelo.activoUnidades.find(u => u.estadoActual !== u.estadoAnterior);
+            if (unidadCambiada) {
+              toastIdRef.current = toast.info(`Estado de unidad actualizado: ${unidadCambiada.codigo} - Nuevo estado: ${unidadCambiada.estadoActual}`);
+            }
+            break;
+        }
+      }, 0);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (socket) {
+      const handleSocketEvent = (data) => {
+        requestAnimationFrame(() => handleActivoModeloChanged(data));
+      };
+
+      socket.on('activo-modelo-changed', handleSocketEvent);
+      return () => {
+        socket.off('activo-modelo-changed', handleSocketEvent);
+      };
+    }
+  }, [socket, handleActivoModeloChanged]);
 
   const obtenerActivos = useCallback(async () => {
     setCargando(true);
     try {
-      let activosData, unidadesData;
-
-      if (navigator.onLine) {
-        try {
-          const response = await axios.get(`${apiUrl}/activo-modelo`);
-          activosData = response.data.data;
-          unidadesData = activosData.flatMap((modelo) =>
-            modelo.activoUnidades.map((unidad) => ({
-              codigo: unidad.codigo,
-              modeloId: modelo.id,
-              ...unidad,
-            }))
-          );
-
-          await setActivos(activosData);
-          await setUnidades(unidadesData);
-        } catch (error) {
-          console.error("Error fetching data from server:", error);
-          activosData = await getActivos();
-          unidadesData = await getUnidades();
-        }
-      } else {
-        activosData = await getActivos();
-        unidadesData = await getUnidades();
-      }
-
-      if (activosData && unidadesData) {
-        setActivos(activosData);
-        setUnidades(unidadesData);
-      } else {
-        toast.error("No hay datos disponibles.");
-      }
+      const response = await axios.get(`${apiUrl}/activo-modelo`);
+      const activosData = response.data.data;
+      const unidadesData = activosData.flatMap((modelo) =>
+        modelo.activoUnidades.map((unidad) => ({
+          codigo: unidad.codigo,
+          modeloId: modelo.id,
+          ...unidad,
+        }))
+      );
+      setActivos(activosData);
+      setUnidades(unidadesData);
     } catch (error) {
       console.error("Error al obtener activos:", error);
       toast.error("Error al cargar los activos.");
@@ -202,7 +216,6 @@ export default function Activos() {
   useEffect(() => {
     obtenerActivos();
   }, [obtenerActivos]);
-
 
   const editarActivo = (activo) => {
     if (unidades.some((unidad) => unidad.modeloId === activo.id && unidad.asignado)) {
@@ -236,13 +249,8 @@ export default function Activos() {
 
     if (result.isConfirmed) {
       try {
-        if (isOnline) {
-          await axios.delete(`${apiUrl}/activo-modelo/${id}`);
-        } else {
-          await addToQueue({ type: 'delete', data: { id } });
-        }
+        await axios.delete(`${apiUrl}/activo-modelo/${id}`);
         setActivos(activos.filter((a) => a.id !== id));
-        await setActivos(activos.filter((a) => a.id !== id));
         Swal.fire("Eliminado!", "El activo ha sido eliminado.", "success");
       } catch (error) {
         console.error("Error al eliminar activo:", error);
@@ -345,6 +353,7 @@ export default function Activos() {
 
   const activosFiltrados = useMemo(() => {
     return activosOrdenados.filter((activo) => {
+      if (!activo) return false;
       const descripcion = activo.descripcion?.toLowerCase() ?? "";
       const codigo = activo.codigo?.toLowerCase() ?? "";
       const termino = terminoBusqueda.toLowerCase();
@@ -381,7 +390,7 @@ export default function Activos() {
       obtenerActivos();
     } catch (error) {
       console.error("Error al cambiar el estado del activo:", error);
-      toast.error(error.response.data.message.message);
+      toast.error(error.response?.data?.message?.message || "Error al cambiar el estado del activo");
     }
   };
 
@@ -418,7 +427,6 @@ export default function Activos() {
     }
   };
 
-  // Chart data preparation
   const estadosData = useMemo(() => {
     const estados = unidades.reduce((acc, unidad) => {
       acc[unidad.estadoActual] = (acc[unidad.estadoActual] || 0) + 1;
@@ -436,7 +444,7 @@ export default function Activos() {
   const activosPorModeloData = useMemo(() => {
     const activosPorModelo = activos.map(activo => ({
       modelo: activo.nombre,
-      cantidad: activo.activoUnidades.length
+      cantidad: activo.activoUnidades?.length || 0
     }));
     return {
       labels: activosPorModelo.map(a => a.modelo),
@@ -450,33 +458,6 @@ export default function Activos() {
 
   return (
     <div className="p-4 px-0 lg:px-0">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center">
-          {isOnline ? (
-            <RiWifiLine className="text-green-500 mr-2" />
-          ) : (
-            <RiWifiOffLine className="text-red-500 mr-2" />
-          )}
-          <span className={isOnline ? "text-green-500" : "text-red-500"}>
-            {isOnline ? "En línea" : "Fuera de línea"}
-          </span>
-        </div>
-        {!isOnline && (
-          <button
-            onClick={sincronizarDatos}
-            disabled={isSyncing}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-          >
-            {isSyncing ? "Sincronizando..." : "Sincronizar datos"}
-          </button>
-        )}
-      </div>
-      {!isOnline && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
-          <p className="font-bold">Modo sin conexión</p>
-          <p>Estás trabajando con datos almacenados localmente. Algunas funciones pueden estar limitadas.</p>
-        </div>
-      )}
       <div className="flex flex-col lg:flex-row justify-between items-center mb-8 space-y-3 lg:space-y-0">
         <h1 className="text-2xl text-emi_azul font-bold">Gestión de Activos</h1>
         <div className="flex items-center space-x-2">
@@ -619,9 +600,7 @@ export default function Activos() {
                       </td>
                       <td className="py-1 px-6">{activo.costo} Bs</td>
                       <td className="py-1 px-6">{activo.partida.vidaUtil}</td>
-                      <td className="py-1 px-6">
-                        {activo.partida.porcentajeDepreciacion}%
-                      </td>
+                      <td className="py-1 px-6">{activo.partida.porcentajeDepreciacion}%</td>
                       <td className="py-1 px-1 text-right space-x-2">
                         <button
                           onClick={() => editarActivo(activo)}
@@ -700,24 +679,11 @@ export default function Activos() {
                             </thead>
                             <tbody>
                               {unidades
-                                .filter(
-                                  (unidad) => unidad.modeloId === activo.id
-                                )
+                                .filter((unidad) => unidad.modeloId === activo.id)
                                 .map((unidad) => (
-                                  <tr
-                                    key={unidad.id}
-                                    className={`border-b hover:bg-gray-100 ${
-                                      unidad.estadoCondicion === "BAJA"
-                                        ? "bg-red-100 text-emi_azul"
-                                        : ""
-                                    }`}
-                                  >
-                                    <td className="py-1 px-6">
-                                      {unidad.codigo}
-                                    </td>
-                                    <td className="py-1 px-6">
-                                      {unidad.asignado ? "Sí" : "No"}
-                                    </td>
+                                  <tr key={unidad.id} className="border-b hover:bg-gray-100">
+                                    <td className="py-1 px-6">{unidad.codigo}</td>
+                                    <td className="py-1 px-6">{unidad.asignado ? "Sí" : "No"}</td>
                                     <td className="py-1 px-6">
                                       <button
                                         onClick={() => abrirModalEstado(unidad)}
@@ -726,9 +692,7 @@ export default function Activos() {
                                         {unidad.estadoActual}
                                       </button>
                                     </td>
-                                    <td className="py-1 px-6">
-                                      {unidad.estadoCondicion}
-                                    </td>
+                                    <td className="py-1 px-6">{unidad.estadoCondicion}</td>
                                     <td className="py-1 px-6 space-x-2">
                                       {unidad.estadoCondicion !== "BAJA" && (
                                         <button
@@ -788,61 +752,52 @@ export default function Activos() {
             {activosPaginados.map((activo) => (
               <div
                 key={activo.id}
-                className="bg-white shadow-md rounded-lg mb-4 p-4"
+                className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 mb-4 p-4 rounded-lg shadow"
               >
-                <h3 className="text-lg font-semibold text-emi_azul mb-2">
-                  {activo.nombre}
-                </h3>
-                <p className="text-sm text-gray-600 mb-2">
+                <h3 className="text-lg font-semibold mb-2">{activo.nombre}</h3>
+                <p className="text-sm mb-2">
+                  <span className="font-medium">ID:</span> {activo.id}
+                </p>
+                <p className="text-sm mb-2">
+                  <span className="font-medium">Descripción:</span>{" "}
                   {activo.descripcion}
                 </p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="font-medium text-black">ID:</span>{" "}
-                    {activo.id}
-                  </div>
-                  <div>
-                    <span className="font-medium text-black">Estado:</span>{" "}
-                    {activo.estado}
-                  </div>
-                  <div>
-                    <span className="font-medium text-black">
-                      Fecha de Ingreso:
-                    </span>{" "}
-                    {new Date(activo.fechaIngreso).toLocaleDateString()}
-                  </div>
-                  <div>
-                    <span className="font-medium text-black">Costo:</span>{" "}
-                    {activo.costo} Bs
-                  </div>
-                  <div>
-                    <span className="font-medium text-black">Vida Útil:</span>{" "}
-                    {activo.partida.vidaUtil} años
-                  </div>
-                  <div>
-                    <span className="font-medium text-black">
-                      % Depreciación:
-                    </span>{" "}
-                    {activo.partida.porcentajeDepreciacion}%
-                  </div>
-                </div>
-                <div className="mt-4 flex justify-between items-center">
-                  <div className="space-x-2">
+                <p className="text-sm mb-2">
+                  <span className="font-medium">Estado:</span> {activo.estado}
+                </p>
+                <p className="text-sm mb-2">
+                  <span className="font-medium">Fecha de Ingreso:</span>{" "}
+                  {new Date(activo.fechaIngreso).toLocaleDateString()}
+                </p>
+                <p className="text-sm mb-2">
+                  <span className="font-medium">Costo:</span> {activo.costo} Bs
+                </p>
+                <p className="text-sm mb-2">
+                  <span className="font-medium">Vida Útil:</span>{" "}
+                  {activo.partida.vidaUtil} años
+                </p>
+                <p className="text-sm mb-2">
+                  <span className="font-medium">% Depreciación:</span>{" "}
+                  {activo.partida.porcentajeDepreciacion}%
+                </p>
+                <div className="flex justify-between items-center mt-4">
+                  <div className="flex space-x-2">
                     <button
                       onClick={() => editarActivo(activo)}
                       disabled={unidades.some(
                         (unidad) =>
                           unidad.modeloId === activo.id && unidad.asignado
                       )}
-                      className={`p-2 rounded-full ${
+                      className={`font-medium p-2 rounded-full ${
                         unidades.some(
                           (unidad) =>
                             unidad.modeloId === activo.id && unidad.asignado
                         )
-                          ? "text-gray-400 bg-gray-200"
+                          ? "text-gray-400 cursor-not-allowed"
                           : "text-emi_amarillo bg-emi_azul hover:bg-black"
                       }`}
                       aria-label="Editar activo"
+                      title="Editar activo"
                     >
                       <RiEdit2Line size="1.5em" />
                     </button>
@@ -852,15 +807,16 @@ export default function Activos() {
                         (unidad) =>
                           unidad.modeloId === activo.id && unidad.asignado
                       )}
-                      className={`p-2 rounded-full ${
+                      className={`font-medium p-2 rounded-full ${
                         unidades.some(
                           (unidad) =>
                             unidad.modeloId === activo.id && unidad.asignado
                         )
-                          ? "text-gray-400 bg-gray-200"
+                          ? "text-gray-400 cursor-not-allowed"
                           : "text-white bg-red-600 hover:bg-red-700"
                       }`}
                       aria-label="Eliminar activo"
+                      title="Eliminar activo"
                     >
                       <RiDeleteBin6Line size="1.5em" />
                     </button>
@@ -869,6 +825,11 @@ export default function Activos() {
                     onClick={() => manejarUnidades(activo.id)}
                     className="font-medium text-emi_azul hover:text-emi_amarillo p-2 rounded-full bg-gray-100 hover:bg-emi_azul transition-colors"
                     aria-label={
+                      unidadesDesplegadas[activo.id]
+                        ? "Ocultar unidades"
+                        : "Mostrar unidades"
+                    }
+                    title={
                       unidadesDesplegadas[activo.id]
                         ? "Ocultar unidades"
                         : "Mostrar unidades"
@@ -883,71 +844,78 @@ export default function Activos() {
                 </div>
                 {unidadesDesplegadas[activo.id] && (
                   <div className="mt-4">
-                    <h4 className="font-semibold text-emi_azul mb-2">
-                      Unidades
-                    </h4>
+                    <h4 className="text-md font-semibold mb-2">Unidades</h4>
                     {unidades
                       .filter((unidad) => unidad.modeloId === activo.id)
                       .map((unidad) => (
                         <div
                           key={unidad.id}
-                          className={`border-t py-2 ${
+                          className={`bg-gray-100 p-2 rounded mb-2 ${
                             unidad.estadoCondicion === "BAJA"
-                              ? "bg-red-100 text-gray-400"
+                              ? "bg-red-100"
                               : ""
                           }`}
                         >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium text-emi_azul">
-                                {unidad.codigo}
-                              </p>
-                              <p className="text-sm text-emi_azul">
-                                {unidad.asignado ? "Asignado" : "No asignado"} |{" "}
-                                <button
-                                  onClick={() => abrirModalEstado(unidad)}
-                                  className={`text-white font-bold py-1 px-3 rounded ${getEstadoColor(unidad.estadoActual)}`}
-                                >
-                                  {unidad.estadoActual}
-                                </button>{" "}
-                                | {unidad.estadoCondicion}
-                              </p>
-                            </div>
-                            <div className="space-x-2">
-                              {unidad.estadoCondicion !== "BAJA" && (
-                                <button
-                                  onClick={() =>
-                                    manejarAsignacion(
-                                      unidad.id,
-                                      unidad.asignado
-                                    )
-                                  }
-                                  className={`p-2 rounded-full ${
-                                    unidad.asignado
-                                      ? "bg-yellow-500 text-white hover:bg-yellow-600"
-                                      : "bg-green-500 text-white hover:bg-green-600"
-                                  }`}
-                                  aria-label={
-                                    unidad.asignado
-                                      ? "Reasignar unidad"
-                                      : "Asignar unidad"
-                                  }
-                                >
-                                  {unidad.asignado ? (
-                                    <RiRefreshLine size="1.5em" />
-                                  ) : (
-                                    <RiAddLine size="1.5em" />
-                                  )}
-                                </button>
-                              )}
+                          <p className="text-sm">
+                            <span className="font-medium">Código:</span>{" "}
+                            {unidad.codigo}
+                          </p>
+                          <p className="text-sm">
+                            <span className="font-medium">Asignado:</span>{" "}
+                            {unidad.asignado ? "Sí" : "No"}
+                          </p>
+                          <p className="text-sm">
+                            <span className="font-medium">Estado Actual:</span>{" "}
+                            <button
+                              onClick={() => abrirModalEstado(unidad)}
+                              className={`text-white font-bold py-1 px-3 rounded ${getEstadoColor(
+                                unidad.estadoActual
+                              )}`}
+                            >
+                              {unidad.estadoActual}
+                            </button>
+                          </p>
+                          <p className="text-sm">
+                            <span className="font-medium">Condición:</span>{" "}
+                            {unidad.estadoCondicion}
+                          </p>
+                          <div className="flex justify-end space-x-2 mt-2">
+                            {unidad.estadoCondicion !== "BAJA" && (
                               <button
-                                onClick={() => manejarSeguimiento(unidad.id)}
-                                className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
-                                aria-label="Ver seguimiento de la unidad"
+                                onClick={() =>
+                                  manejarAsignacion(unidad.id, unidad.asignado)
+                                }
+                                className={`font-medium p-2 rounded-full ${
+                                  unidad.asignado
+                                    ? "bg-yellow-500 text-white hover:bg-yellow-600"
+                                    : "bg-green-500 text-white hover:bg-green-600"
+                                }`}
+                                aria-label={
+                                  unidad.asignado
+                                    ? "Reasignar unidad"
+                                    : "Asignar unidad"
+                                }
+                                title={
+                                  unidad.asignado
+                                    ? "Reasignar unidad"
+                                    : "Asignar unidad"
+                                }
                               >
-                                <RiEyeLine size="1.5em" />
+                                {unidad.asignado ? (
+                                  <RiRefreshLine size="1.5em" />
+                                ) : (
+                                  <RiAddLine size="1.5em" />
+                                )}
                               </button>
-                            </div>
+                            )}
+                            <button
+                              onClick={() => manejarSeguimiento(unidad.id)}
+                              className="font-medium p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                              aria-label="Ver seguimiento de la unidad"
+                              title="Ver seguimiento de la unidad"
+                            >
+                              <RiEyeLine size="1.5em" />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -956,61 +924,43 @@ export default function Activos() {
               </div>
             ))}
           </div>
-          <div className="flex justify-between items-center mt-4 px-6">
-            <div>
-              <label htmlFor="itemsPerPage" className="mr-2">
-                Mostrar:
-              </label>
-              <select
-                id="itemsPerPage"
-                value={activosPorPagina}
-                onChange={(e) => setActivosPorPagina(Number(e.target.value))}
-                className="border border-gray-300 rounded px-2 py-1"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-            <ReactPaginate
-              previousLabel={"Anterior"}
-              nextLabel={"Siguiente"}
-              breakLabel={"..."}
-              breakClassName={"break-me"}
-              pageCount={Math.ceil(activosFiltrados.length / activosPorPagina)}
-              marginPagesDisplayed={2}
-              pageRangeDisplayed={5}
-              onPageChange={paginacion}
-              containerClassName={"pagination flex justify-center mt-4 mb-4"}
-              pageClassName={"mx-1"}
-              pageLinkClassName={
-                "px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"
-              }
-              activeClassName={"bg-emi_azul text-white"}
-              previousClassName={"mx-1"}
-              nextClassName={"mx-1"}
-              previousLinkClassName={
-                "px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"
-              }
-              nextLinkClassName={
-                "px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"
-              }
-              disabledClassName={"opacity-50 cursor-not-allowed"}
-            />
-          </div>
         </div>
       )}
-      {unidadIdSeguimiento !== null && (
+      <ReactPaginate
+        previousLabel={"Anterior"}
+        nextLabel={"Siguiente"}
+        breakLabel={"..."}
+        pageCount={Math.ceil(activosFiltrados.length / activosPorPagina)}
+        marginPagesDisplayed={2}
+        pageRangeDisplayed={5}
+        onPageChange={paginacion}
+        containerClassName={"flex justify-center mt-4 space-x-2"}
+        pageClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium"}
+        pageLinkClassName={"page-link"}
+        previousClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-l-md"}
+        previousLinkClassName={"page-link"}
+        nextClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-r-md"}
+        nextLinkClassName={"page-link"}
+        breakClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium"}
+        breakLinkClassName={"page-link"}
+        activeClassName={"bg-blue-50 border-blue-500 text-blue-600 z-10"}
+      />
+      <Modal
+        isOpen={unidadIdSeguimiento !== null}
+        onRequestClose={cerrarModalSeguimiento}
+        style={modalStyles}
+        contentLabel="Modal de Seguimiento de Activo"
+      >
         <SeguimientoActivo
           unidadId={unidadIdSeguimiento}
           onClose={cerrarModalSeguimiento}
         />
-      )}
+      </Modal>
       <Modal
         isOpen={estadoModalAbierto}
         onRequestClose={cerrarModalEstado}
         style={modalStyles}
-        contentLabel="Modal de Cambio de Estado de Activo"
+        contentLabel="Modal de Cambio de Estado"
       >
         <div className="bg-white p-6 rounded-lg">
           <h2 className="text-2xl font-bold mb-4">Cambiar Estado del Activo</h2>
@@ -1023,9 +973,8 @@ export default function Activos() {
                 id="estadoNuevo"
                 name="estadoNuevo"
                 className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                required
+                defaultValue={activoUnidadSeleccionado?.estadoActual}
               >
-                <option value="">Seleccione un estado</option>
                 <option value="Nuevo">Nuevo</option>
                 <option value="Bueno">Bueno</option>
                 <option value="Regular">Regular</option>
@@ -1040,22 +989,22 @@ export default function Activos() {
                 id="motivoCambio"
                 name="motivoCambio"
                 rows="3"
-                className="mt-1 block w-full sm:text-sm border-gray-300 rounded-md"
-                placeholder="Ingrese el motivo del cambio de estado"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="Explique el motivo del cambio de estado"
                 required
               ></textarea>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end space-x-2">
               <button
                 type="button"
                 onClick={cerrarModalEstado}
-                className="mr-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Guardar Cambios
               </button>
@@ -1063,34 +1012,14 @@ export default function Activos() {
           </form>
         </div>
       </Modal>
-
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Estados de Activos</h3>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Estados de Activos</h2>
           <Pie data={estadosData} />
         </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Activos por Modelo</h3>
-          <Bar 
-            data={activosPorModeloData}
-            options={{
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  title: {
-                    display: true,
-                    text: 'Cantidad de Unidades'
-                  }
-                },
-                x: {
-                  title: {
-                    display: true,
-                    text: 'Modelo de Activo'
-                  }
-                }
-              }
-            }}
-          />
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-bold mb-4">Activos por Modelo</h2>
+          <Bar data={activosPorModeloData} />
         </div>
       </div>
     </div>

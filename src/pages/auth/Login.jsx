@@ -5,6 +5,7 @@ import { RiMailLine, RiLockLine, RiEyeLine, RiEyeOffLine } from "react-icons/ri"
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Swal from 'sweetalert2';
+import { useWebSocket } from '../../pages/admin/WebSocketContext';
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -12,6 +13,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
+  const socket = useWebSocket();
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -29,6 +31,12 @@ const Login = () => {
         localStorage.setItem("nombre", user.name);
         localStorage.setItem("email", user.email);
         localStorage.setItem("role", user.role);
+        
+        // Set user roles in WebSocket
+        if (socket) {
+          socket.emit('setRoles', [user.role]);
+        }
+
         Swal.fire({
           title: '¡Usuario Conectado!',
           text: 'Bienvenido',

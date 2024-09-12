@@ -50,7 +50,6 @@ const ReasignarActivos = ({ onClose, onSave, activoUnidadId }) => {
       setActivoADevolver(response.data.data.activoUnidad);
     } catch (error) {
       console.error("Error fetching ultima asignacion:", error);
-      toast.error("No se pudo cargar la última asignación.");
     }
   };
 
@@ -290,7 +289,7 @@ const ReasignarActivos = ({ onClose, onSave, activoUnidadId }) => {
                   onClick={() => handleSeleccionPersonal(p)}
                 >
                   <p className="font-medium">{p.nombre}</p>
-                  <p className="text-sm text-gray-600">{p.cargo} - {p.unidad}</p>
+                  <p className="text-sm text-gray-600">{p.cargo.nombre} - {p.unidad.nombre}</p>
                 </div>
               ))}
             </div>
@@ -312,8 +311,8 @@ const ReasignarActivos = ({ onClose, onSave, activoUnidadId }) => {
               <div className="bg-white p-4 rounded-lg shadow-md flex-1">
                 <h4 className="text-lg font-medium text-emi_azul">Nueva Asignación</h4>
                 <p className="text-sm text-gray-600">Nombre: {selectedPersonal.nombre}</p>
-                <p className="text-sm text-gray-600">Cargo: {selectedPersonal.cargo}</p>
-                <p className="text-sm text-gray-600">Unidad: {selectedPersonal.unidad}</p>
+                <p className="text-sm text-gray-600">Cargo: {selectedPersonal.cargo.nombre}</p>
+                <p className="text-sm text-gray-600">Unidad: {selectedPersonal.unidad.nombre}</p>
               </div>
             </div>
             {showPDF && pdfData && (

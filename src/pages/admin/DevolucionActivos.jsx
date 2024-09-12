@@ -29,6 +29,7 @@ function DevolucionActivos() {
   const fetchPersonal = async () => {
     try {
       const response = await axios.get(`${apiUrl}/personal`);
+
       setPersonal(response.data.data);
     } catch (error) {
       console.error("Error fetching personal:", error);
@@ -68,8 +69,8 @@ function DevolucionActivos() {
 
     const pdfData = {
       nombre: selectedPersonal.nombre,
-      cargo: selectedPersonal.cargo,
-      unidad: selectedPersonal.unidad,
+      cargo: selectedPersonal.cargo.nombre,
+      unidad: selectedPersonal.unidad.nombre,
       activos: activos.filter(activo => selectedActivos.includes(activo.id))
     };
 
@@ -163,7 +164,7 @@ function DevolucionActivos() {
                   <RiUserLine className="mr-2 text-emi_azul" />
                   <div>
                     <p className="font-medium text-emi_azul">{persona.nombre}</p>
-                    <p className="text-sm text-gray-600">{persona.ci} - {persona.cargo}</p>
+                    <p className="text-sm text-gray-600">{persona.ci}  -{persona.cargo.nombre }- {persona.unidad.nombre}</p>
                   </div>
                 </div>
               ))}

@@ -3,19 +3,14 @@ import { Routes, Route } from "react-router-dom";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import PrivateRoute from './pages/auth/PrivateRoute';
-// Layouts
 import LayoutAuth from "./layouts/LayoutAuth";
 import LayoutAdmin from "./layouts/LayoutAdmin";
-// Pages auth
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgetPassword from "./pages/auth/ForgetPassword";
-// Pages admin
 import Home from "./pages/admin/Home";
-
 import Chat from "./pages/admin/Chat";
 import Error404 from "./pages/Error404";
-
 import Activos from "./pages/admin/Activos";
 import Unidades from "./pages/admin/Unidades";
 import RegisterUser from "./pages/admin/RegisterUser";
@@ -23,7 +18,6 @@ import RegisterActivos from "./pages/admin/RegisterActivos";
 import AsignarActivos from "./pages/admin/AsignarActivos";
 import Usuarios from "./pages/admin/Usuarios";
 import RegisterUnidades from "./pages/admin/RegisterUnidades";
-
 import GestionActivos from "./pages/admin/GestionarActivos";
 import Reset from "./pages/auth/ResetPassword";
 import Calendario from "./pages/admin/Calendario";
@@ -33,7 +27,7 @@ import Mantenimientos from "./pages/admin/Mantenimientos";
 import Reportes from "./pages/admin/Reportes";
 import CambioEstado from "./pages/admin/Cambio_Estado";
 import DevolverActivos from "./pages/admin/DevolucionActivos";
-//import { SocketProvider } from './pages/admin/SocketManager';
+import { WebSocketProvider } from "./pages/admin/WebSocketContext";
 
 function App() {
   useEffect(() => {
@@ -71,7 +65,7 @@ function App() {
   }, []);
 
   return (
-    <>
+    <WebSocketProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Register />} />
@@ -81,18 +75,14 @@ function App() {
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<LayoutAdmin />}>
             <Route index element={<Home />} />
-            
             <Route path="chat" element={<Chat />} />
-            
             <Route path="activos" element={<Activos />} />
-            
             <Route path="unidades" element={<Unidades />} />
             <Route path="registrouser" element={<RegisterUser />} />
             <Route path="registroactivos" element={<RegisterActivos />} />
             <Route path="asignar-activos" element={<AsignarActivos />} />
             <Route path="usuarios" element={<Usuarios />} />
             <Route path="registrounidades" element={<RegisterUnidades />} />
-            
             <Route path="gestionaractivos" element={<GestionActivos />} />
             <Route path="devolveractivos" element={<DevolverActivos />} />
             <Route path="calendario" element={<Calendario />} />
@@ -106,7 +96,7 @@ function App() {
         <Route path="*" element={<Error404 />} />
       </Routes>
       <ToastContainer />
-    </>
+    </WebSocketProvider>
   );
 }
 

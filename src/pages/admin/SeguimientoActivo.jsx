@@ -25,6 +25,7 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
+    console.log('unidadId', unidadId);
     setIsLoading(true);
     try {
       const { data } = await axios.get(`${apiUrl}/seguimiento/${unidadId}`);
