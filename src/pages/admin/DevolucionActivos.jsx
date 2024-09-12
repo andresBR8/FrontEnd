@@ -20,7 +20,7 @@ function DevolucionActivos() {
   const [actaFileUrl, setActaFileUrl] = useState(null);
   const [detalle, setDetalle] = useState("");
 
-  const apiUrl = "http://localhost:3000"; // Replace with your actual API URL
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     fetchPersonal();

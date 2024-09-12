@@ -19,6 +19,7 @@ const Dashboard = () => {
     depreciationComparison: [],
     upcomingDepreciations: [],
   });
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -34,15 +35,15 @@ const Dashboard = () => {
           depreciationComparison,
           upcomingDepreciations
         ] = await Promise.all([
-          axios.get('http://localhost:3000/dashboard/kpis'),
-          axios.get('http://localhost:3000/dashboard/asset-value-trend'),
-          axios.get('http://localhost:3000/dashboard/asset-distribution'),
-          axios.get('http://localhost:3000/dashboard/asset-status'),
-          axios.get('http://localhost:3000/dashboard/latest-assignments'),
-          axios.get('http://localhost:3000/dashboard/assets-by-unit'),
-          axios.get('http://localhost:3000/dashboard/high-value-assets'),
-          axios.get('http://localhost:3000/dashboard/depreciation-comparison'),
-          axios.get('http://localhost:3000/dashboard/upcoming-depreciations')
+          axios.get(`${apiUrl}/dashboard/kpis`),
+          axios.get(`${apiUrl}/dashboard/asset-value-trend`),
+          axios.get(`${apiUrl}/dashboard/asset-distribution`),
+          axios.get(`${apiUrl}/dashboard/asset-status`),
+          axios.get(`${apiUrl}/dashboard/latest-assignments`),
+          axios.get(`${apiUrl}/dashboard/assets-by-unit`),
+          axios.get(`${apiUrl}/dashboard/high-value-assets`),
+          axios.get(`${apiUrl}/dashboard/depreciation-comparison`),
+          axios.get(`${apiUrl}/dashboard/upcoming-depreciations`)
         ]);
 
         setDashboardData({
