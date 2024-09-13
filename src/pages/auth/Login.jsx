@@ -19,7 +19,7 @@ const Login = () => {
     event.preventDefault();
 
     try {
-      const response = await axios.post(`${apiUrl}/auth/login`, {
+      const response = await axios.post(`backend-production-0e76.up.railway.app/auth/login`, {
         username,
         password
       });
