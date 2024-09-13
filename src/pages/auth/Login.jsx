@@ -19,37 +19,40 @@ const Login = () => {
     event.preventDefault();
 
     try {
-      const response = await axios.post(`backend-production-0e76.up.railway.app/auth/login`, {
+      const response = await axios.post(`${apiUrl}/auth/login`, {
         username,
         password
       });
-      console.log(response.data);
       const { access_token, user } = response.data;
-      if (access_token) {
-        localStorage.setItem("id", user.id);
-        localStorage.setItem("token", access_token);
-        localStorage.setItem("nombre", user.name);
-        localStorage.setItem("email", user.email);
-        localStorage.setItem("role", user.role);
-        
-        // Set user roles in WebSocket
-        if (socket) {
-          socket.emit('setRoles', [user.role]);
-        }
 
-        Swal.fire({
-          title: '¡Usuario Conectado!',
-          text: 'Bienvenido',
-          icon: 'success',
-          confirmButtonText: 'Aceptar'
-        });
-        navigate("/");
-      } else {
-        toast.warning('Token no proporcionado por la API');
+      // Guardar los datos del usuario en localStorage
+      localStorage.setItem("id", user.id);
+      localStorage.setItem("token", access_token);
+      localStorage.setItem("nombre", user.name);
+      localStorage.setItem("email", user.email);
+      localStorage.setItem("role", user.role);
+
+      // Emitir roles por WebSocket una vez que el usuario inicie sesión exitosamente
+      if (socket) {
+        socket.emit('setRoles', [user.role]);
       }
+
+      // Mostrar notificación de éxito
+      Swal.fire({
+        title: '¡Usuario Conectado!',
+        text: 'Bienvenido',
+        icon: 'success',
+        confirmButtonText: 'Aceptar'
+      });
+
+      // Redirigir al usuario a la página principal
+      navigate("/");
+
     } catch (error) {
       console.log(error);
-      toast.error(error.response?.data?.message?.message || "Ocurrió un error al iniciar sesión.");
+      // Mostrar mensaje de error si ocurre un problema en la autenticación
+      const errorMessage = error.response?.data?.message || "Ocurrió un error al iniciar sesión.";
+      toast.error(errorMessage);
     }
   };
 
@@ -63,7 +66,7 @@ const Login = () => {
           <div className="relative mb-4">
             <RiMailLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
             <input
-              type="username"
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="py-3 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
