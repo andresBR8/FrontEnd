@@ -46,6 +46,7 @@ export default function Activos() {
   const [unidadIdSeguimiento, setUnidadIdSeguimiento] = useState(null);
   const [estadoModalAbierto, setEstadoModalAbierto] = useState(false);
   const [activoUnidadSeleccionado, setActivoUnidadSeleccionado] = useState(null);
+  
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const socket = useWebSocket();

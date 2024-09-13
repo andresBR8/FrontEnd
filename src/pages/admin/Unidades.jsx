@@ -42,7 +42,7 @@ export default function Personal() {
 
     try {
       setIsLoading(true);
-      const response = await axios.post(`${apiUrl}//personal/upload-csv`, formData, {
+      const response = await axios.post(`${apiUrl}/personal/upload-csv`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

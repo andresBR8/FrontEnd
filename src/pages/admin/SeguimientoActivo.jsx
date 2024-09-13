@@ -4,10 +4,7 @@ import Modal from 'react-modal';
 import QRCode from 'qrcode.react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { 
-  RiAlertLine,
-  RiLoader4Line,
-} from 'react-icons/ri';
+import { RiAlertLine, RiLoader4Line, RiCloseLine, RiInformationLine, RiHistoryLine } from 'react-icons/ri';
 import ActivoWorkflow from './ActivoWorkflow';
 
 const apiUrl = import.meta.env.VITE_API_URL;
@@ -23,6 +20,7 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
   const [activoData, setActivoData] = useState(null);
   const [eventos, setEventos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('info');
 
   const fetchData = useCallback(async () => {
     console.log('unidadId', unidadId);
@@ -32,7 +30,7 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
       setActivoData(data);
 
       const eventosOrdenados = data.historialCambios
-        .sort((a, b) => new Date(a.fechaCambio) - new Date(b.fechaCambio));
+        .sort((a, b) => new Date(b.fechaCambio) - new Date(a.fechaCambio));
 
       setEventos(eventosOrdenados);
     } catch (error) {
@@ -56,17 +54,33 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
       marginRight: '-50%',
       transform: 'translate(-50%, -50%)',
       width: '95%',
-      maxWidth: '1400px',
+      maxWidth: '1200px',
       height: '90%',
       backgroundColor: 'white',
       borderRadius: '20px',
-      padding: '20px',
-      overflow: 'auto',
+      padding: '0',
+      overflow: 'hidden',
+      border: 'none',
     },
     overlay: {
       backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      zIndex: 1000,
     },
   };
+
+  const TabButton = ({ id, icon, label }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`flex items-center px-4 py-2 rounded-t-lg transition-colors duration-200 ${
+        activeTab === id
+          ? 'bg-white text-emi_azul border-t-2 border-emi_azul'
+          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      }`}
+    >
+      {icon}
+      <span className="ml-2">{label}</span>
+    </button>
+  );
 
   return (
     <Modal 
@@ -75,67 +89,93 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
       style={modalStyles}
       contentLabel="Seguimiento del Activo"
     >
-      <div className="p-4 bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-blue-800">Seguimiento del Activo</h2>
-          {activoData && (
-            <QRCode
-              value={`Activo ID: ${activoData.activoUnidad.id}\nNombre: ${activoData.activoUnidad.activoModelo.nombre}\nDescripción: ${activoData.activoUnidad.activoModelo.descripcion}\nCódigo: ${activoData.activoUnidad.codigo}`}
-              size={128}
-            />
-          )}
+      <div className="flex flex-col h-full bg-gray-50">
+        <div className="flex justify-between items-center p-4 bg-emi_azul text-white">
+          <h2 className="text-2xl font-bold">Seguimiento del Activo</h2>
+          <button onClick={onClose} className="text-white hover:text-emi_amarillo transition-colors duration-200">
+            <RiCloseLine size={24} />
+          </button>
         </div>
-        <div className="bg-white p-4 rounded shadow-lg mb-4 text-blue-800">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-32">
-              <RiLoader4Line className="animate-spin text-blue-500 text-4xl" />
+        {isLoading ? (
+          <div className="flex-grow flex justify-center items-center">
+            <RiLoader4Line className="animate-spin text-emi_azul text-4xl" />
+          </div>
+        ) : activoData ? (
+          <>
+            <div className="flex border-b border-gray-200">
+              <TabButton id="info" icon={<RiInformationLine />} label="Información" />
+              <TabButton id="history" icon={<RiHistoryLine />} label="Historial" />
             </div>
-          ) : activoData ? (
-            <>
-              <div className={`mb-4 p-4 rounded ${activoData.activoUnidad.estadoCondicion === "BAJA" ? 'bg-red-100 border border-red-500' : 'bg-blue-100'}`}>
-                <h3 className="text-xl font-semibold mb-2">Información del Activo</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p><strong>ID:</strong> {activoData.activoUnidad.id}</p>
-                    <p><strong>Descripción:</strong> {activoData.activoUnidad.activoModelo.descripcion}</p>
-                    <p><strong>Código:</strong> {activoData.activoUnidad.codigo}</p>
-                    <p><strong>Estado Actual:</strong> {activoData.activoUnidad.estadoActual}</p>
-                    <p><strong>Condición:</strong> {activoData.activoUnidad.estadoCondicion}</p>
+            <div className="flex-grow overflow-auto p-6">
+              {activeTab === 'info' && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h3 className="text-xl font-semibold text-emi_azul mb-2">{activoData.activoUnidad.activoModelo.nombre}</h3>
+                      <p className="text-gray-600">{activoData.activoUnidad.activoModelo.descripcion}</p>
+                    </div>
+                    <QRCode
+                      value={`Activo ID: ${activoData.activoUnidad.id}\nNombre: ${activoData.activoUnidad.activoModelo.nombre}\nDescripción: ${activoData.activoUnidad.activoModelo.descripcion}\nCódigo: ${activoData.activoUnidad.codigo}`}
+                      size={96}
+                    />
                   </div>
-                  <div>
-                    <p><strong>Fecha de Ingreso:</strong> {new Date(activoData.activoUnidad.activoModelo.fechaIngreso).toLocaleString()}</p>
-                    <p><strong>Costo Actual:</strong> {activoData.activoUnidad.costoActual} Bs</p>
-                    <p><strong>Vida Útil:</strong> {activoData.activoUnidad.activoModelo.partida.vidaUtil} años</p>
-                    <p><strong>Depreciación Anual:</strong> {activoData.activoUnidad.activoModelo.partida.porcentajeDepreciacion}%</p>
-                    <p><strong>Depreciación Actual:</strong> {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil)}%</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <InfoItem label="ID" value={activoData.activoUnidad.id} />
+                      <InfoItem label="Código" value={activoData.activoUnidad.codigo} />
+                      <InfoItem label="Estado Actual" value={activoData.activoUnidad.estadoActual} />
+                      <InfoItem label="Condición" value={activoData.activoUnidad.estadoCondicion} />
+                    </div>
+                    <div className="space-y-3">
+                      <InfoItem label="Fecha de Ingreso" value={new Date(activoData.activoUnidad.activoModelo.fechaIngreso).toLocaleDateString()} />
+                      <InfoItem label="Costo Actual" value={`${activoData.activoUnidad.costoActual} Bs`} />
+                      <InfoItem label="Vida Útil" value={`${activoData.activoUnidad.activoModelo.partida.vidaUtil} años`} />
+                      <InfoItem label="Depreciación Anual" value={`${activoData.activoUnidad.activoModelo.partida.porcentajeDepreciacion}%`} />
+                      <InfoItem 
+                        label="Depreciación Actual" 
+                        value={`${calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil)}%`}
+                      />
+                    </div>
                   </div>
+                  {activoData.activoUnidad.estadoCondicion === "BAJA" && (
+                    <AlertBanner type="error" message="Este activo está dado de baja." />
+                  )}
+                  {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil) > 80 && (
+                    <AlertBanner type="warning" message="Este activo está cerca de su vida útil." />
+                  )}
                 </div>
-                {activoData.activoUnidad.estadoCondicion === "BAJA" && (
-                  <p className="text-red-600 font-bold mt-2"><RiAlertLine className="inline-block mr-2" />Este activo está dado de baja.</p>
-                )}
-                {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil) > 80 && (
-                  <p className="text-yellow-600 font-bold mt-2"><RiAlertLine className="inline-block mr-2" />Este activo está cerca de su vida útil.</p>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <div className="inline-block min-w-full">
-                  <h3 className="text-xl font-semibold mb-4">Historial de Eventos</h3>
+              )}
+              {activeTab === 'history' && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-semibold text-emi_azul mb-4">Historial de Eventos</h3>
                   <ActivoWorkflow eventos={eventos} />
                 </div>
-              </div>
-            </>
-          ) : (
-            <p>No hay datos disponibles</p>
-          )}
-        </div>
-        <button 
-          onClick={onClose}
-          className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
-        >
-          Cerrar
-        </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex-grow flex justify-center items-center">
+            <p className="text-gray-600">No hay datos disponibles</p>
+          </div>
+        )}
       </div>
       <ToastContainer />
     </Modal>
   );
 }
+
+const InfoItem = ({ label, value }) => (
+  <div className="flex justify-between items-center border-b border-gray-200 py-2">
+    <span className="font-medium text-gray-600">{label}:</span>
+    <span className="text-gray-800">{value}</span>
+  </div>
+);
+
+const AlertBanner = ({ type, message }) => (
+  <div className={`mt-4 p-3 rounded-md ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+    <div className="flex items-center">
+      <RiAlertLine className="mr-2" size={20} />
+      <p className="font-medium">{message}</p>
+    </div>
+  </div>
+);

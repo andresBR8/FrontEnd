@@ -36,6 +36,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
     fetchPartidas();
   }, []);
 
+
   const fetchPartidas = async () => {
     try {
       const response = await axios.get(`${apiUrl}/partida`);

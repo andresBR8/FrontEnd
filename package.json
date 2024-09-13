@@ -78,6 +78,8 @@
     "socket.io-client": "^4.7.5",
     "sweetalert2": "^11.12.3",
     "sweetalert2-react-content": "^5.0.7",
+    "vis-data": "^7.1.9",
+    "vis-network": "^9.1.9",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
