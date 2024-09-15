@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Modal from "react-modal";
 import Swal from "sweetalert2";
-import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiSearchLine, RiLoader4Line, RiFileDownloadLine, RiEyeLine } from "react-icons/ri";
+import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiSearchLine, RiLoader4Line, RiFileDownloadLine } from "react-icons/ri";
 import { Bar, Pie } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import axios from 'axios';
@@ -12,7 +12,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tool
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
-const AssetManagement = () => {
+export default function AssetManagement() {
   const [assignments, setAssignments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
@@ -80,8 +80,8 @@ const AssetManagement = () => {
 
   const pageCount = Math.ceil(filteredAssignments.length / itemsPerPage);
 
-  const handlePageClick = (pageIndex) => {
-    setCurrentPage(pageIndex);
+  const handlePageClick = ({ selected }) => {
+    setCurrentPage(selected);
   };
 
   const pieChartData = {
@@ -288,7 +288,8 @@ const AssetManagement = () => {
                   <div className="mt-2">
                     <button 
                       onClick={() => handleAvalClick(assignment.avalAsignacion)}
-                      className="text-emi_azul hover:text-emi_amarillo transition-colors flex items-center"
+                      className="text-emi_azul hover:text-emi_amar
+illo transition-colors flex items-center"
                     >
                       <RiFileDownloadLine size="1.5em"  className="mr-1" />
                       Descargar Aval
@@ -345,36 +346,17 @@ const AssetManagement = () => {
           isOpen={isModalOpen}
           onRequestClose={() => setIsModalOpen(false)}
           style={{
-            content: {
-              top: '50%',
-              left: '50%',
-              right: 'auto',
-              bottom: 'auto',
-              marginRight: '-50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'white',
-              borderRadius: '20px',
-              padding: '20px',
-              width: '90%',
-              maxWidth: '1000px',
-              maxHeight: '90vh',
-              overflow: 'auto',
-            },
             overlay: {
               backgroundColor: 'rgba(0, 0, 0, 0.75)',
               zIndex: 1000
             }
           }}
+          className="outline-none"
           contentLabel="Asignar Activos"
         >
-          <AsignarActivos onSave={() => {
-            setIsModalOpen(false);
-            fetchAssignments();
-          }} />
+          <AsignarActivos onClose={() => setIsModalOpen(false)} onAssignmentComplete={fetchAssignments} />
         </Modal>
       </div>
     </div>
   );
-};
-
-export default AssetManagement;
+}

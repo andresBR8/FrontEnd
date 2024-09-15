@@ -189,7 +189,7 @@ const Sidebar = () => {
               </button>
               <ul
                 className={` ${
-                  showSubmenu3 ? "h-[50px]" : "h-0"
+                  showSubmenu3 ? "h-[80px]" : "h-0"
                 } overflow-y-hidden transition-all`}
               >
                 <li>
@@ -200,7 +200,14 @@ const Sidebar = () => {
                     Gestionar Personal
                   </Link>
                 </li>
-                
+                <li>
+                  <Link
+                    to="/revision"
+                    className="py-2 px-4 border-l border-gray-500 ml-6 block relative before:w-3 before:h-3 before:absolute before:bg-primary before:rounded-full before:-left-[6.5px] before:top-1/2 before:-translate-y-1/2 before:border-4 before:border-secondary-100 hover:text-white transition-colors"
+                  >
+                    Revisión Personal
+                  </Link>
+                </li>
               </ul>
             </li>
             )}

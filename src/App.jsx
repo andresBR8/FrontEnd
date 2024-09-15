@@ -28,6 +28,8 @@ import Reportes from "./pages/admin/Reportes";
 import CambioEstado from "./pages/admin/Cambio_Estado";
 import DevolverActivos from "./pages/admin/DevolucionActivos";
 import { WebSocketProvider } from "./pages/admin/WebSocketContext";
+import RevisionPersonal from "./pages/admin/RevisionPersonal";
+
 
 function App() {
   useEffect(() => {
@@ -91,6 +93,7 @@ function App() {
             <Route path='mantenimiento' element={<Mantenimientos />} />
             <Route path='reportes' element={<Reportes />} />
             <Route path='estado' element={<CambioEstado />} />
+            <Route path='revision' element={<RevisionPersonal />} />
           </Route>
         </Route>
         <Route path="*" element={<Error404 />} />

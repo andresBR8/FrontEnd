@@ -81,7 +81,7 @@ export default function Depreciacion() {
   const fetchCurrentYearDepreciation = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${apiUrl}/depreciacion/año-actual`);
+      const response = await axios.get(`${apiUrl}/depreciacion/actual`);
       setCurrentYearDepreciation(response.data);
     } catch (error) {
       console.error('Error fetching current year depreciation:', error);

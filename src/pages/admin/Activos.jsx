@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useWebSocket } from '../../pages/admin/WebSocketContext.jsx';
 import Swal from "sweetalert2";
 import {
@@ -16,7 +16,7 @@ import SeguimientoActivo from "./SeguimientoActivo";
 import ReasignarActivos from "./ReasignarActivos";
 import Modal from "react-modal";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { message } from "antd";
 import { useNavigate } from "react-router-dom";
 import QrScanner from "react-qr-scanner";
 import ReactPaginate from "react-paginate";
@@ -38,16 +38,16 @@ export default function Activos() {
   const [tipoOrden, setTipoOrden] = useState("");
   const [direccionOrden, setDireccionOrden] = useState("asc");
   const [paginaActual, setPaginaActual] = useState(0);
-  const [activosPorPagina, setActivosPorPagina] = useState(10);
+  const [activosPorPagina] = useState(10);
   const [escaneoActivo, setEscaneoActivo] = useState(true);
   const [unidadIdReasignacion, setUnidadIdReasignacion] = useState(null);
   const [cargando, setCargando] = useState(true);
-  const navigate = useNavigate();
   const [unidadIdSeguimiento, setUnidadIdSeguimiento] = useState(null);
   const [estadoModalAbierto, setEstadoModalAbierto] = useState(false);
   const [activoUnidadSeleccionado, setActivoUnidadSeleccionado] = useState(null);
-  
+  const [modalActivo, setModalActivo] = useState(false);
 
+  const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
   const socket = useWebSocket();
 
@@ -73,7 +73,7 @@ export default function Activos() {
   });
 
   const updateModalStyles = useCallback(() => {
-    setModalStyles((prevStyles) => ({
+    setModalStyles(prevStyles => ({
       ...prevStyles,
       content: {
         ...prevStyles.content,
@@ -86,109 +86,86 @@ export default function Activos() {
   useEffect(() => {
     window.addEventListener("resize", updateModalStyles);
     updateModalStyles();
-
-    return () => {
-      window.removeEventListener("resize", updateModalStyles);
-    };
+    return () => window.removeEventListener("resize", updateModalStyles);
   }, [updateModalStyles]);
 
-  // Integración del WebSocket
-  const toastIdRef = useRef(null);
-
   const handleActivoModeloChanged = useCallback((data) => {
-    console.log('Activo modelo changed:', data);
-    if (data && data.action) {
-      setActivos((prevActivos) => {
-        let updatedActivos;
-        switch (data.action) {
-          case 'created':
-            updatedActivos = [...prevActivos, data.activoModelo];
-            break;
-          case 'updated':
-          case 'change-estado':
-            updatedActivos = prevActivos.map(activo => {
-              if (activo.id === data.activoModelo.id) {
-                return {
+    if (!data || !data.action) return;
+
+    const updateActivos = (prevActivos) => {
+      switch (data.action) {
+        case 'created':
+          return [...prevActivos, data.activoModelo];
+        case 'updated':
+        case 'change-estado':
+          return prevActivos.map(activo => 
+            activo.id === data.activoModelo.id
+              ? {
                   ...activo,
                   ...data.activoModelo,
                   activoUnidades: data.activoModelo.activoUnidades.map(nuevaUnidad => {
                     const unidadExistente = activo.activoUnidades.find(u => u.id === nuevaUnidad.id);
                     return unidadExistente ? { ...unidadExistente, ...nuevaUnidad } : nuevaUnidad;
                   })
-                };
-              }
-              return activo;
-            });
-            break;
-          case 'deleted':
-            updatedActivos = prevActivos.filter(activo => activo.id !== data.activoModelo.id);
-            break;
-          default:
-            updatedActivos = prevActivos;
-        }
-        return updatedActivos;
-      });
+                }
+              : activo
+          );
+        case 'deleted':
+          return prevActivos.filter(activo => activo.id !== data.activoModelo.id);
+        default:
+          return prevActivos;
+      }
+    };
 
-      setUnidades((prevUnidades) => {
-        let updatedUnidades;
-        switch (data.action) {
-          case 'created':
-          case 'updated':
-          case 'change-estado':
-            updatedUnidades = prevUnidades.map(unidad => {
-              const nuevaUnidad = data.activoModelo.activoUnidades.find(u => u.id === unidad.id);
-              return nuevaUnidad ? { ...unidad, ...nuevaUnidad, modeloId: data.activoModelo.id } : unidad;
-            });
-            const nuevasUnidades = data.activoModelo.activoUnidades.filter(
-              nuevaUnidad => !prevUnidades.some(u => u.id === nuevaUnidad.id)
-            ).map(u => ({ ...u, modeloId: data.activoModelo.id }));
-            updatedUnidades = [...updatedUnidades, ...nuevasUnidades];
-            break;
-          case 'deleted':
-            updatedUnidades = prevUnidades.filter(unidad => unidad.modeloId !== data.activoModelo.id);
-            break;
-          default:
-            updatedUnidades = prevUnidades;
-        }
-        return updatedUnidades;
-      });
+    const updateUnidades = (prevUnidades) => {
+      switch (data.action) {
+        case 'created':
+        case 'updated':
+        case 'change-estado':
+          const updatedUnidades = prevUnidades.map(unidad => {
+            const nuevaUnidad = data.activoModelo.activoUnidades.find(u => u.id === unidad.id);
+            return nuevaUnidad ? { ...unidad, ...nuevaUnidad, modeloId: data.activoModelo.id } : unidad;
+          });
+          const nuevasUnidades = data.activoModelo.activoUnidades
+            .filter(nuevaUnidad => !prevUnidades.some(u => u.id === nuevaUnidad.id))
+            .map(u => ({ ...u, modeloId: data.activoModelo.id }));
+          return [...updatedUnidades, ...nuevasUnidades];
+        case 'deleted':
+          return prevUnidades.filter(unidad => unidad.modeloId !== data.activoModelo.id);
+        default:
+          return prevUnidades;
+      }
+    };
 
-      // Toast notification
-      setTimeout(() => {
-        if (toastIdRef.current) {
-          toast.dismiss(toastIdRef.current);
-        }
-        switch (data.action) {
-          case 'created':
-            toastIdRef.current = toast.success(`Nuevo activo modelo creado: ${data.activoModelo.nombre}`);
-            break;
-          case 'updated':
-            toastIdRef.current = toast.info(`Activo modelo actualizado: ${data.activoModelo.nombre}`);
-            break;
-          case 'deleted':
-            toastIdRef.current = toast.error(`Activo modelo eliminado: ${data.activoModelo.nombre}`);
-            break;
-          case 'change-estado':
-            const unidadCambiada = data.activoModelo.activoUnidades.find(u => u.estadoActual !== u.estadoAnterior);
-            if (unidadCambiada) {
-              toastIdRef.current = toast.info(`Estado de unidad actualizado: ${unidadCambiada.codigo} - Nuevo estado: ${unidadCambiada.estadoActual}`);
-            }
-            break;
-        }
-      }, 0);
-    }
+    setActivos(updateActivos);
+    setUnidades(updateUnidades);
+
+    // Replace toast notifications with Ant Design messages
+    setTimeout(() => {
+      switch (data.action) {
+        case 'created':
+          message.success(`Nuevo activo modelo creado: ${data.activoModelo.nombre}`);
+          break;
+        case 'updated':
+          message.info(`Activo modelo actualizado: ${data.activoModelo.nombre}`);
+          break;
+        case 'deleted':
+          message.error(`Activo modelo eliminado: ${data.activoModelo.nombre}`);
+          break;
+        case 'change-estado':
+          const unidadCambiada = data.activoModelo.activoUnidades.find(u => u.estadoActual !== u.estadoAnterior);
+          if (unidadCambiada) {
+            message.info(`Estado de unidad actualizado: ${unidadCambiada.codigo} - Nuevo estado: ${unidadCambiada.estadoActual}`);
+          }
+          break;
+      }
+    }, 0);
   }, []);
 
   useEffect(() => {
     if (socket) {
-      const handleSocketEvent = (data) => {
-        requestAnimationFrame(() => handleActivoModeloChanged(data));
-      };
-
-      socket.on('activo-modelo-changed', handleSocketEvent);
-      return () => {
-        socket.off('activo-modelo-changed', handleSocketEvent);
-      };
+      socket.on('activo-modelo-changed', handleActivoModeloChanged);
+      return () => socket.off('activo-modelo-changed', handleActivoModeloChanged);
     }
   }, [socket, handleActivoModeloChanged]);
 
@@ -199,16 +176,17 @@ export default function Activos() {
       const activosData = response.data.data;
       const unidadesData = activosData.flatMap((modelo) =>
         modelo.activoUnidades.map((unidad) => ({
+          ...unidad,
           codigo: unidad.codigo,
           modeloId: modelo.id,
-          ...unidad,
+          estadoInicial: unidad.estadoActual,
         }))
       );
       setActivos(activosData);
       setUnidades(unidadesData);
     } catch (error) {
       console.error("Error al obtener activos:", error);
-      toast.error("Error al cargar los activos.");
+      message.error("Error al cargar los activos.");
     } finally {
       setCargando(false);
     }
@@ -218,23 +196,33 @@ export default function Activos() {
     obtenerActivos();
   }, [obtenerActivos]);
 
-  const editarActivo = (activo) => {
-    if (unidades.some((unidad) => unidad.modeloId === activo.id && unidad.asignado)) {
-      toast.error("No se puede editar un modelo con unidades asignadas.");
+  const puedeEditarEliminarActivo = useCallback((activo) => {
+    const unidadesDelActivo = unidades.filter(unidad => unidad.modeloId === activo.id);
+    const algunaUnidadCambioEstado = unidadesDelActivo.some(unidad => unidad.estadoActual !== unidad.estadoInicial);
+    const algunaUnidadAsignada = unidadesDelActivo.some(unidad => unidad.asignado);
+    return !algunaUnidadCambioEstado && !algunaUnidadAsignada;
+  }, [unidades]);
+
+  const editarActivo = useCallback((activo) => {
+    if (!puedeEditarEliminarActivo(activo)) {
+      message.error("No se puede editar este activo debido a cambios en sus unidades.");
       return;
     }
     setActivoSeleccionado(activo);
     setModalAbierto(true);
-  };
+    setModalActivo(true);
+  }, [puedeEditarEliminarActivo]);
 
-  const agregarActivo = () => {
+  const agregarActivo = useCallback(() => {
     setActivoSeleccionado(null);
     setModalAbierto(true);
-  };
+    setModalActivo(true);
+  }, []);
 
-  const eliminarActivo = async (id) => {
-    if (unidades.some((unidad) => unidad.modeloId === id && unidad.asignado)) {
-      toast.error("No se puede eliminar un modelo con unidades asignadas.");
+  const eliminarActivo = useCallback(async (id) => {
+    const activo = activos.find(a => a.id === id);
+    if (!activo || !puedeEditarEliminarActivo(activo)) {
+      message.error("No se puede eliminar este activo debido a cambios en sus unidades.");
       return;
     }
 
@@ -251,20 +239,22 @@ export default function Activos() {
     if (result.isConfirmed) {
       try {
         await axios.delete(`${apiUrl}/activo-modelo/${id}`);
-        setActivos(activos.filter((a) => a.id !== id));
-        Swal.fire("Eliminado!", "El activo ha sido eliminado.", "success");
+        setActivos(prevActivos => prevActivos.filter(a => a.id !== id));
+        message.success("El activo ha sido eliminado.");
       } catch (error) {
         console.error("Error al eliminar activo:", error);
-        Swal.fire("Error!", "No se pudo eliminar el activo.", "error");
+        message.error("No se pudo eliminar el activo.");
       }
     }
-  };
+  }, [activos, apiUrl, puedeEditarEliminarActivo]);
 
-  const ordenarPor = (campo) => {
-    const esAsc = tipoOrden === campo && direccionOrden === "asc";
-    setTipoOrden(campo);
-    setDireccionOrden(esAsc ? "desc" : "asc");
-  };
+  const ordenarPor = useCallback((campo) => {
+    setTipoOrden(prevTipo => {
+      const nuevaDireccion = prevTipo === campo && direccionOrden === "asc" ? "desc" : "asc";
+      setDireccionOrden(nuevaDireccion);
+      return campo;
+    });
+  }, [direccionOrden]);
 
   const activosOrdenados = useMemo(() => {
     return [...activos].sort((a, b) => {
@@ -284,73 +274,70 @@ export default function Activos() {
     });
   }, [activos, tipoOrden, direccionOrden]);
 
-  const manejarUnidades = (id) => {
-    setUnidadesDesplegadas((prevDesplegadas) => ({
+  const manejarUnidades = useCallback((id) => {
+    setUnidadesDesplegadas(prevDesplegadas => ({
       ...prevDesplegadas,
       [id]: !prevDesplegadas[id],
     }));
-  };
+  }, []);
 
-  const manejarAsignacion = (id, asignado) => {
+  const manejarAsignacion = useCallback((id, asignado) => {
     if (asignado) {
       setUnidadIdReasignacion(id);
     } else {
       navigate(`/asignar-activo/${id}`);
     }
-  };
+    setModalActivo(true);
+  }, [navigate]);
 
-  const manejarSeguimiento = (id) => {
+  const manejarSeguimiento = useCallback((id) => {
     setUnidadIdSeguimiento(id);
-  };
+    setModalActivo(true);
+  }, []);
 
-  const cerrarModalSeguimiento = () => {
+  const cerrarModalSeguimiento = useCallback(() => {
     setUnidadIdSeguimiento(null);
-  };
+    setModalActivo(false);
+  }, []);
 
-  const handleScan = (data) => {
+  const handleScan = useCallback((data) => {
     if (data && data.text && escaneoActivo) {
       setEscaneoActivo(false);
 
       let codigo = "";
-
       if (data.text.includes("Activo ID:")) {
-        const regex = /Código:\s*(\S+)/;
-        const match = data.text.match(regex);
-        if (match) {
-          codigo = match[1];
-        }
+        const match = data.text.match(/Código:\s*(\S+)/);
+        if (match) codigo = match[1];
       } else {
         codigo = data.text.split(" ")[0];
       }
 
       if (codigo) {
-        const unidadEncontrada = unidades.find(
-          (unidad) => unidad.codigo === codigo
-        );
+        const unidadEncontrada = unidades.find(unidad => unidad.codigo === codigo);
         if (unidadEncontrada) {
           setTerminoBusqueda(codigo);
-          setUnidadesDesplegadas((prevDesplegadas) => ({
+          setUnidadesDesplegadas(prevDesplegadas => ({
             ...prevDesplegadas,
             [unidadEncontrada.modeloId]: true,
           }));
           setQrModalAbierto(false);
-          toast.success("Activo encontrado.");
+          message.success("Activo encontrado.");
         } else {
-          toast.error("Activo no encontrado.");
+          message.error("Activo no encontrado.");
         }
       } else {
-        toast.error("Formato de QR no reconocido.");
+        message.error("Formato de QR no reconocido.");
       }
       setEscaneoActivo(true);
     }
-  };
+  }, [escaneoActivo, unidades]);
 
-  const handleError = (error) => {
+  const handleError = useCallback((error) => {
     console.error("Error al escanear el QR:", error);
     if (escaneoActivo) {
-      toast.error("Error al escanear el QR.");
+      message.error("Error al escanear el QR.");
     }
-  };
+  }, [escaneoActivo]);
 
   const activosFiltrados = useMemo(() => {
     return activosOrdenados.filter((activo) => {
@@ -378,55 +365,52 @@ export default function Activos() {
     indexOfLastActivo
   );
 
-  const paginacion = ({ selected }) => setPaginaActual(selected);
+  const paginacion = useCallback(({ selected }) => setPaginaActual(selected), []);
 
-  const cambiarEstadoActivo = async (fkActivoUnidad, estadoNuevo, motivoCambio) => {
+  const cambiarEstadoActivo = useCallback(async (fkActivoUnidad, estadoNuevo, motivoCambio) => {
     try {
-      const response = await axios.post(`${apiUrl}/estado-activo`, {
+      await axios.post(`${apiUrl}/estado-activo`, {
         fkActivoUnidad,
         estadoNuevo,
         motivoCambio
       });
-      toast.success("Estado del activo actualizado con éxito");
+      message.success("Estado del activo actualizado con éxito");
       obtenerActivos();
     } catch (error) {
       console.error("Error al cambiar el estado del activo:", error);
-      toast.error(error.response?.data?.message?.message || "Error al cambiar el estado del activo");
+      message.error(error.response?.data?.message?.message || "Error al cambiar el estado del activo");
     }
-  };
+  }, [apiUrl, obtenerActivos]);
 
-  const abrirModalEstado = (unidad) => {
+  const abrirModalEstado = useCallback((unidad) => {
     setActivoUnidadSeleccionado(unidad);
     setEstadoModalAbierto(true);
-  };
+    setModalActivo(true);
+  }, []);
 
-  const cerrarModalEstado = () => {
+  const cerrarModalEstado = useCallback(() => {
     setActivoUnidadSeleccionado(null);
     setEstadoModalAbierto(false);
-  };
+    setModalActivo(false);
+  }, []);
 
-  const handleCambioEstado = (e) => {
+  const handleCambioEstado = useCallback((e) => {
     e.preventDefault();
     const estadoNuevo = e.target.estadoNuevo.value;
     const motivoCambio = e.target.motivoCambio.value;
     cambiarEstadoActivo(activoUnidadSeleccionado.id, estadoNuevo, motivoCambio);
     cerrarModalEstado();
-  };
+  }, [activoUnidadSeleccionado, cambiarEstadoActivo, cerrarModalEstado]);
 
-  const getEstadoColor = (estado) => {
+  const getEstadoColor = useCallback((estado) => {
     switch (estado) {
-      case 'Nuevo':
-        return 'bg-green-500 hover:bg-green-600';
-      case 'Bueno':
-        return 'bg-blue-500 hover:bg-blue-600';
-      case 'Regular':
-        return 'bg-yellow-500 hover:bg-yellow-600';
-      case 'Malo':
-        return 'bg-red-500 hover:bg-red-600';
-      default:
-        return 'bg-gray-500 hover:bg-gray-600';
+      case 'Nuevo': return 'bg-green-500 hover:bg-green-600';
+      case 'Bueno': return 'bg-blue-500 hover:bg-blue-600';
+      case 'Regular': return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'Malo': return 'bg-red-500 hover:bg-red-600';
+      default: return 'bg-gray-500 hover:bg-gray-600';
     }
-  };
+  }, []);
 
   const estadosData = useMemo(() => {
     const estados = unidades.reduce((acc, unidad) => {
@@ -490,13 +474,20 @@ export default function Activos() {
 
       <Modal
         isOpen={modalAbierto}
-        onRequestClose={() => setModalAbierto(false)}
+        onRequestClose={() => {
+          setModalAbierto(false);
+          setModalActivo(false); // Muestra la paginación
+        }}
         style={modalStyles}
         contentLabel="Modal de Registro de Activos"
       >
         <RegisterActivos
           activo={activoSeleccionado}
-          onClose={() => { setModalAbierto(false); obtenerActivos(); }}
+          onClose={() => { 
+            setModalAbierto(false);
+            setModalActivo(false); // Muestra la paginación
+            obtenerActivos(); 
+          }}
         />
       </Modal>
       <Modal
@@ -526,14 +517,20 @@ export default function Activos() {
       </Modal>
       <Modal
         isOpen={unidadIdReasignacion !== null}
-        onRequestClose={() => setUnidadIdReasignacion(null)}
+        onRequestClose={() => {
+          setUnidadIdReasignacion(null);
+          setModalActivo(false); // Muestra la paginación
+        }}
         style={modalStyles}
         contentLabel="Modal de Reasignación de Activos"
       >
         <ReasignarActivos
           activoUnidadId={unidadIdReasignacion}
-          onClose={() => setUnidadIdReasignacion(null)}
-          onSave={obtenerActivos}
+          onClose={() => {
+            setUnidadIdReasignacion(null);
+            setModalActivo(false); // Muestra la paginación
+            obtenerActivos();
+          }}
         />
       </Modal>
       {cargando ? (
@@ -927,25 +924,27 @@ export default function Activos() {
           </div>
         </div>
       )}
-      <ReactPaginate
-        previousLabel={"Anterior"}
-        nextLabel={"Siguiente"}
-        breakLabel={"..."}
-        pageCount={Math.ceil(activosFiltrados.length / activosPorPagina)}
-        marginPagesDisplayed={2}
-        pageRangeDisplayed={5}
-        onPageChange={paginacion}
-        containerClassName={"flex justify-center mt-4 space-x-2"}
-        pageClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium"}
-        pageLinkClassName={"page-link"}
-        previousClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-l-md"}
-        previousLinkClassName={"page-link"}
-        nextClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-r-md"}
-        nextLinkClassName={"page-link"}
-        breakClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium"}
-        breakLinkClassName={"page-link"}
-        activeClassName={"bg-blue-50 border-blue-500 text-blue-600 z-10"}
-      />
+      {!modalActivo && (
+        <ReactPaginate
+          previousLabel={"Anterior"}
+          nextLabel={"Siguiente"}
+          breakLabel={"..."}
+          pageCount={Math.ceil(activosFiltrados.length / activosPorPagina)}
+          marginPagesDisplayed={2}
+          pageRangeDisplayed={5}
+          onPageChange={paginacion}
+          containerClassName={"flex justify-center mt-4 space-x-2"}
+          pageClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium"}
+          pageLinkClassName={"page-link"}
+          previousClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-l-md"}
+          previousLinkClassName={"page-link"}
+          nextClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-r-md"}
+          nextLinkClassName={"page-link"}
+          breakClassName={"bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 text-sm font-medium"}
+          breakLinkClassName={"page-link"}
+          activeClassName={"bg-blue-50 border-blue-500 text-blue-600 z-10"}
+        />
+      )}
       <Modal
         isOpen={unidadIdSeguimiento !== null}
         onRequestClose={cerrarModalSeguimiento}

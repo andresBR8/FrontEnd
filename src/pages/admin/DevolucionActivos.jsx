@@ -2,14 +2,35 @@ import React, { useState, useEffect, useMemo } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
-import { RiUserLine, RiSearchLine, RiCheckboxCircleLine, RiFileTextLine, RiUploadCloud2Line } from "react-icons/ri";
+import { RiFileDownloadLine, RiFilterOffLine, RiAddLine, RiUserLine, RiSearchLine, RiCheckboxCircleLine, RiFileTextLine, RiUploadCloud2Line } from "react-icons/ri";
+import { DatePicker, Select, Input, Button, Table, Space, Modal } from 'antd';
+import moment from 'moment';
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import { PDFViewer } from '@react-pdf/renderer';
 import DevolucionDocument from './DevolucionDocument';
 
+const { RangePicker } = DatePicker;
+const { Option } = Select;
+
+const apiUrl = import.meta.env.VITE_API_URL;
+
 function DevolucionActivos() {
+  const [devoluciones, setDevoluciones] = useState([]);
+  const [filteredDevoluciones, setFilteredDevoluciones] = useState([]);
+  const [dateRange, setDateRange] = useState(null);
+  const [selectedUnidad, setSelectedUnidad] = useState("TODAS");
+  const [selectedEstado, setSelectedEstado] = useState("TODOS");
+  const [selectedPersonal, setSelectedPersonal] = useState("TODOS");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [unidades, setUnidades] = useState([]);
   const [personal, setPersonal] = useState([]);
-  const [selectedPersonal, setSelectedPersonal] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  // Modal states
+  const [modalSearchTerm, setModalSearchTerm] = useState("");
+  const [selectedPersonalForReturn, setSelectedPersonalForReturn] = useState(null);
   const [activos, setActivos] = useState([]);
   const [selectedActivos, setSelectedActivos] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,16 +41,32 @@ function DevolucionActivos() {
   const [actaFileUrl, setActaFileUrl] = useState(null);
   const [detalle, setDetalle] = useState("");
 
-  const apiUrl = import.meta.env.VITE_API_URL;
-
   useEffect(() => {
+    fetchDevoluciones();
     fetchPersonal();
   }, []);
 
+  const fetchDevoluciones = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(`${apiUrl}/devolucion`);
+      const data = response.data.data;
+      setDevoluciones(data);
+      setFilteredDevoluciones(data);
+      
+      const uniqueUnidades = [...new Set(data.map(d => d.personal.unidad.nombre))];
+      setUnidades(uniqueUnidades);
+    } catch (error) {
+      console.error("Error fetching devoluciones:", error);
+      toast.error("No se pudo cargar la lista de devoluciones.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchPersonal = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/personal`);
-
+      const response = await axios.get(`${apiUrl}/personal/all`);
       setPersonal(response.data.data);
     } catch (error) {
       console.error("Error fetching personal:", error);
@@ -37,15 +74,171 @@ function DevolucionActivos() {
     }
   };
 
-  const filteredPersonal = useMemo(() => {
+  const handleDateRangeChange = (dates) => {
+    setDateRange(dates);
+    applyFilters(dates, selectedUnidad, selectedEstado, selectedPersonal, searchTerm);
+  };
+
+  const handleUnidadChange = (value) => {
+    setSelectedUnidad(value);
+    applyFilters(dateRange, value, selectedEstado, selectedPersonal, searchTerm);
+  };
+
+  const handleEstadoChange = (value) => {
+    setSelectedEstado(value);
+    applyFilters(dateRange, selectedUnidad, value, selectedPersonal, searchTerm);
+  };
+
+  const handlePersonalChange = (value) => {
+    setSelectedPersonal(value);
+    applyFilters(dateRange, selectedUnidad, selectedEstado, value, searchTerm);
+  };
+
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    applyFilters(dateRange, selectedUnidad, selectedEstado, selectedPersonal, value);
+  };
+
+  const clearFilters = () => {
+    setDateRange(null);
+    setSelectedUnidad("TODAS");
+    setSelectedEstado("TODOS");
+    setSelectedPersonal("TODOS");
+    setSearchTerm("");
+    setFilteredDevoluciones(devoluciones);
+  };
+
+  const applyFilters = (dates, unidad, estado, personalNombre, search) => {
+    let filtered = [...devoluciones];
+
+    if (dates && dates[0] && dates[1]) {
+      const startDate = dates[0].startOf('day');
+      const endDate = dates[1].endOf('day');
+      filtered = filtered.filter(devolucion => 
+        moment(devolucion.fecha).isBetween(startDate, endDate, null, '[]')
+      );
+    }
+
+    if (unidad !== "TODAS") {
+      filtered = filtered.filter(devolucion => devolucion.personal.unidad.nombre === unidad);
+    }
+
+    if (estado !== "TODOS") {
+      filtered = filtered.filter(devolucion => devolucion.activoUnidad.estadoCondicion === estado);
+    }
+
+    if (personalNombre !== "TODOS") {
+      filtered = filtered.filter(devolucion => devolucion.personal.nombre === personalNombre);
+    }
+
+    if (search) {
+      filtered = filtered.filter(devolucion => 
+        devolucion.activoUnidad.codigo.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    setFilteredDevoluciones(filtered);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Reporte de Devoluciones", 20, 10);
+    const tableColumn = ["ID", "Fecha", "Personal", "Unidad", "Código Activo", "Estado", "Detalle"];
+    const tableRows = filteredDevoluciones.map(devolucion => [
+      devolucion.id,
+      moment(devolucion.fecha).format('DD/M/YYYY'),
+      devolucion.personal.nombre,
+      devolucion.personal.unidad.nombre,
+      devolucion.activoUnidad.codigo,
+      devolucion.activoUnidad.estadoCondicion,
+      devolucion.detalle
+    ]);
+
+    doc.autoTable(tableColumn, tableRows, { startY: 20 });
+    doc.save("reporte_devoluciones.pdf");
+  };
+
+  const columns = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+    },
+    {
+      title: 'Fecha',
+      dataIndex: 'fecha',
+      key: 'fecha',
+      render: (text) => moment(text).format('DD/M/YYYY'),
+    },
+    {
+      title: 'Personal',
+      dataIndex: ['personal', 'nombre'],
+      key: 'personal',
+    },
+    {
+      title: 'Unidad',
+      dataIndex: ['personal', 'unidad', 'nombre'],
+      key: 'unidad',
+    },
+    {
+      title: 'Código Activo',
+      dataIndex: ['activoUnidad', 'codigo'],
+      key: 'codigoActivo',
+    },
+    {
+      title: 'Estado Condición',
+      dataIndex: ['activoUnidad', 'estadoCondicion'],
+      key: 'estadoCondicion',
+    },
+    {
+      title: 'Detalle',
+      dataIndex: 'detalle',
+      key: 'detalle',
+    },
+    {
+      title: 'Acta de Devolución',
+      key: 'actaDevolucion',
+      render: (text, record) => (
+        <a href={record.actaDevolucion} target="_blank" rel="noopener noreferrer">
+          Descargar
+        </a>
+      ),
+    },
+  ];
+
+  // Modal functions
+  const showModal = () => {
+    setIsModalVisible(true);
+    setCurrentStep(1);
+  };
+
+  const handleCancel = () => {
+    setIsModalVisible(false);
+    resetModalState();
+  };
+
+  const resetModalState = () => {
+    setModalSearchTerm("");
+    setSelectedPersonalForReturn(null);
+    setActivos([]);
+    setSelectedActivos([]);
+    setCurrentStep(1);
+    setShowPDF(false);
+    setPdfData(null);
+    setActaFile(null);
+    setActaFileUrl(null);
+    setDetalle("");
+  };
+
+  const filteredModalPersonal = useMemo(() => {
     return personal.filter(p => 
-      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.ci.includes(searchTerm)
+      p.nombre.toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+      p.ci.includes(modalSearchTerm)
     );
-  }, [personal, searchTerm]);
+  }, [personal, modalSearchTerm]);
 
   const handleSelectPersonal = async (persona) => {
-    setSelectedPersonal(persona);
+    setSelectedPersonalForReturn(persona);
     try {
       const response = await axios.get(`${apiUrl}/devolucion/activos/${persona.id}`);
       setActivos(response.data.data);
@@ -65,12 +258,12 @@ function DevolucionActivos() {
   };
 
   const generatePDFData = () => {
-    if (!selectedPersonal || selectedActivos.length === 0) return;
+    if (!selectedPersonalForReturn || selectedActivos.length === 0) return;
 
     const pdfData = {
-      nombre: selectedPersonal.nombre,
-      cargo: selectedPersonal.cargo.nombre,
-      unidad: selectedPersonal.unidad.nombre,
+      nombre: selectedPersonalForReturn.nombre,
+      cargo: selectedPersonalForReturn.cargo.nombre,
+      unidad: selectedPersonalForReturn.unidad.nombre,
       activos: activos.filter(activo => selectedActivos.includes(activo.id))
     };
 
@@ -112,7 +305,7 @@ function DevolucionActivos() {
     setIsSubmitting(true);
 
     const devolucionData = {
-      fkPersonal: selectedPersonal.id,
+      fkPersonal: selectedPersonalForReturn.id,
       fkUsuario: localStorage.getItem("id"),
       fecha: new Date().toISOString(),
       detalle: detalle || "Devolución de activos",
@@ -124,9 +317,8 @@ function DevolucionActivos() {
       const response = await axios.post(`${apiUrl}/devolucion`, devolucionData);
       if (response.status === 201) {
         toast.success("Los activos han sido devueltos correctamente.");
-        setSelectedActivos([]);
-        setActivos(activos.filter(activo => !selectedActivos.includes(activo.id)));
-        setCurrentStep(1);
+        handleCancel();
+        fetchDevoluciones();
       } else {
         throw new Error("La respuesta del servidor no fue exitosa");
       }
@@ -150,12 +342,12 @@ function DevolucionActivos() {
                 className="shadow appearance-none border rounded w-full py-2 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-emi_azul"
                 type="text"
                 placeholder="Buscar por nombre o CI"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={modalSearchTerm}
+                onChange={(e) => setModalSearchTerm(e.target.value)}
               />
             </div>
             <div className="mt-4 max-h-60 overflow-y-auto">
-              {filteredPersonal.map((persona) => (
+              {filteredModalPersonal.map((persona) => (
                 <div
                   key={persona.id}
                   className="p-2 hover:bg-gray-100 cursor-pointer rounded-lg flex items-center"
@@ -164,7 +356,7 @@ function DevolucionActivos() {
                   <RiUserLine className="mr-2 text-emi_azul" />
                   <div>
                     <p className="font-medium text-emi_azul">{persona.nombre}</p>
-                    <p className="text-sm text-gray-600">{persona.ci}  -{persona.cargo.nombre }- {persona.unidad.nombre}</p>
+                    <p className="text-sm text-gray-600">{persona.ci} - {persona.cargo.nombre} - {persona.unidad.nombre}</p>
                   </div>
                 </div>
               ))}
@@ -278,9 +470,102 @@ function DevolucionActivos() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4 text-emi_azul">Devolución de Activos</h1>
+      <h1 className="text-2xl font-bold mb-4 text-emi_azul">Registro de Devoluciones</h1>
 
       <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+        <div className="flex flex-wrap justify-between items-center mb-4">
+          <div className="flex flex-wrap items-center space-x-4 mb-4">
+            <RangePicker 
+              onChange={handleDateRangeChange}
+              value={dateRange}
+              className="w-full sm:w-auto mb-2 sm:mb-0"
+            />
+            <Select
+              value={selectedUnidad}
+              style={{ width: 200 }}
+              onChange={handleUnidadChange}
+              className="w-full sm:w-auto mb-2 sm:mb-0"
+            >
+              <Option value="TODAS">Todas las unidades</Option>
+              {unidades.map(unidad => (
+                <Option key={unidad} value={unidad}>{unidad}</Option>
+              ))}
+            </Select>
+            <Select
+              value={selectedEstado}
+              style={{ width: 150 }}
+              onChange={handleEstadoChange}
+              className="w-full sm:w-auto mb-2 sm:mb-0"
+            >
+              <Option value="TODOS">Todos los estados</Option>
+              <Option value="DISPONIBLE">Disponible</Option>
+              <Option value="BAJA">Baja</Option>
+              <Option value="REASIGNADO">Reasignado</Option>
+            </Select>
+            <Select
+              value={selectedPersonal}
+              style={{ width: 200 }}
+              onChange={handlePersonalChange}
+              className="w-full sm:w-auto mb-2 sm:mb-0"
+            >
+              <Option value="TODOS">Todo el personal</Option>
+              {personal.map(p => (
+                <Option key={p.id} value={p.nombre}>{p.nombre}</Option>
+              ))}
+            </Select>
+            <Input.Search
+              placeholder="Buscar por código de activo"
+              onSearch={handleSearch}
+              style={{ width: 250 }}
+              className="w-full sm:w-auto mb-2 sm:mb-0"
+            />
+          </div>
+          <Space>
+            <Button
+              icon={<RiFilterOffLine />}
+              onClick={clearFilters}
+              className="bg-emi_azul text-white hover:bg-emi_azul-dark"
+            >
+              Limpiar Filtros
+            </Button>
+            <Button
+              icon={<RiFileDownloadLine />}
+              onClick={exportToPDF}
+              className="bg-emi_amarillo text-emi_azul hover:bg-emi_amarillo-dark"
+            >
+              Exportar a PDF
+            </Button>
+            <Button
+              icon={<RiAddLine />}
+              onClick={showModal}
+              className="w-full py-2 px-4 bg-emi_amarillo text-emi_azul text-sm font-bold uppercase rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors flex items-center justify-center"
+            >
+              Agregar Devolución
+            </Button>
+          </Space>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={filteredDevoluciones}
+          loading={isLoading}
+          rowKey="id"
+          scroll={{ x: true }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+          }}
+        />
+      </div>
+
+      <Modal
+        title="Agregar Devolución"
+        visible={isModalVisible}
+        onCancel={handleCancel}
+        footer={null}
+        width={800}
+      >
         <div className="flex justify-center mb-6">
           {[1, 2, 3, 4].map((step) => (
             <div key={step} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs mr-2 ${currentStep >= step ? 'bg-emi_amarillo text-emi_azul font-bold' : 'bg-gray-300 text-gray-600'}`}>
@@ -299,7 +584,9 @@ function DevolucionActivos() {
             Anterior
           </button>
         )}
-      </div>
+      </Modal>
+
+      <ToastContainer />
     </div>
   );
 }

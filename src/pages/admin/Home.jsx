@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { notification, message } from "antd";
 import { BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import axios from 'axios';
+import { SmileOutlined, WarningOutlined } from '@ant-design/icons';
 
 const COLORS = ['#4299E1', '#48BB78', '#F6AD55', '#F56565', '#9F7AEA', '#ED64A6'];
 
@@ -42,7 +42,7 @@ const Dashboard = () => {
           axios.get(`${apiUrl}/dashboard/latest-assignments`),
           axios.get(`${apiUrl}/dashboard/assets-by-unit`),
           axios.get(`${apiUrl}/dashboard/high-value-assets`),
-          axios.get(`${apiUrl}/dashboard/depreciation-comparison`),
+          axios.get(`${apiUrl}/depreciacion/comparacion?años=${encodeURIComponent('2024')}`),
           axios.get(`${apiUrl}/dashboard/upcoming-depreciations`)
         ]);
 
@@ -54,12 +54,13 @@ const Dashboard = () => {
           latestAssignments: latestAssignments.data.assignments,
           assetsByUnit: assetsByUnit.data.assetsByUnit,
           highValueAssets: highValueAssets.data.highValueAssets,
-          depreciationComparison: depreciationComparison.data.comparison,
+          depreciationComparison: depreciationComparison.data.comparison[0], // Asegurarte de tomar el primer array.
           upcomingDepreciations: upcomingDepreciations.data.upcomingDepreciations,
         });
+
+        message.success('Datos del dashboard cargados correctamente');
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
-        toast.error("Error al cargar los datos del dashboard");
       }
     };
 
@@ -119,7 +120,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <ToastContainer />
       <header className="bg-emi_azul text-emi_amarillo p-4 rounded-lg shadow-md mb-6">
         <h1 className="text-3xl font-bold">Dashboard de Gestión de Activos Fijos</h1>
       </header>

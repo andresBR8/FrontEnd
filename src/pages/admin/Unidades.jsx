@@ -12,9 +12,8 @@ export default function Personal() {
   const [currentPage, setCurrentPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000"; // Default value if VITE_API_URL is not set
   const itemsPerPage = 10;
-
 
   const fetchPersonal = useCallback(async () => {
     setIsLoading(true);
