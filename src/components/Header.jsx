@@ -58,7 +58,15 @@ const Header = () => {
 
       socket.on('bajaAprobada', (data) => {
         const newNotification = { 
-          type: 'info', 
+          type: 'success', 
+          message: ` ${data.message}`, 
+          timestamp: new Date().toISOString() 
+        };
+        handleNewNotification(newNotification);
+      });
+      socket.on('bajaRechazada', (data) => {
+        const newNotification = { 
+          type: 'warning', 
           message: ` ${data.message}`, 
           timestamp: new Date().toISOString() 
         };
@@ -77,7 +85,7 @@ const Header = () => {
   }, [socket]);
 
   const handleNewNotification = (notification) => {
-    const notificationSound = new Audio('../../public/notificacion.mp3');
+    const notificationSound = new Audio('/notificacion.mp3');
 
     setNotificaciones((prev) => {
       const isDuplicate = prev.some((noti) => noti.message === notification.message && noti.timestamp === notification.timestamp);
