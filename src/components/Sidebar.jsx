@@ -54,7 +54,7 @@ const Sidebar = () => {
       <div className="flex justify-center">
   <Link
     to="/"
-    className="text-center text-2xl font-bold text-emi_amarillo mb-10 py-2 px-4 border-l border-gray-500 ml-6 block relative before:w-3 before:h-3 before:absolute before:bg-primary before:rounded-full before:-left-[6.5px] before:top-1/2 before:-translate-y-1/2 before:border-4 before:border-secondary-100 hover:text-white transition-colors"
+    className="text-center text-2xl font-bold text-emi_amarillo mb-10 py-2 px-4  ml-6 block before:w-3 before:h-3 before:absolute before:bg-primary before:rounded-full before:-left-[6.5px] before:top-1/2 before:-translate-y-1/2 before:border-4 before:border-secondary-100 hover:text-white "
   >
     EMI
   </Link>
@@ -156,17 +156,6 @@ const Sidebar = () => {
                     className="py-2 px-4 border-l border-gray-500 ml-6 block relative before:w-3 before:h-3 before:absolute before:bg-primary before:rounded-full before:-left-[6.5px] before:top-1/2 before:-translate-y-1/2 before:border-4 before:border-secondary-100 hover:text-white transition-colors"
                   >
                     Bajas
-                  </Link>
-                </li>
-                )}
-                
-                {!shouldHideMenu && (
-                <li>
-                  <Link
-                    to="/reportes"
-                    className="py-2 px-4 border-l border-gray-500 ml-6 block relative before:w-3 before:h-3 before:absolute before:bg-primary before:rounded-full before:-left-[6.5px] before:top-1/2 before:-translate-y-1/2 before:border-4 before:border-secondary-100 hover:text-white transition-colors"
-                  >
-                    Reportes
                   </Link>
                 </li>
                 )}

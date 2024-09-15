@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { notification, message } from "antd";
+import { notification, message, Skeleton } from "antd";
 import { BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import axios from 'axios';
 import { SmileOutlined, WarningOutlined } from '@ant-design/icons';
@@ -8,6 +8,7 @@ const COLORS = ['#4299E1', '#48BB78', '#F6AD55', '#F56565', '#9F7AEA', '#ED64A6'
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     kpis: null,
     assetValueTrend: [],
@@ -24,6 +25,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        setLoading(true);
         const [
           kpis,
           assetValueTrend,
@@ -54,13 +56,20 @@ const Dashboard = () => {
           latestAssignments: latestAssignments.data.assignments,
           assetsByUnit: assetsByUnit.data.assetsByUnit,
           highValueAssets: highValueAssets.data.highValueAssets,
-          depreciationComparison: depreciationComparison.data.comparison[0], // Asegurarte de tomar el primer array.
+          depreciationComparison: depreciationComparison.data.comparison[0],
           upcomingDepreciations: upcomingDepreciations.data.upcomingDepreciations,
         });
 
         message.success('Datos del dashboard cargados correctamente');
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        notification.error({
+          message: 'Error',
+          description: 'No se pudieron cargar los datos del dashboard.',
+          icon: <WarningOutlined style={{ color: '#ff4d4f' }} />
+        });
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -77,12 +86,18 @@ const Dashboard = () => {
 
   const renderKPICard = (title, value, growth) => (
     <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-emi_azul transition-all duration-300 hover:shadow-lg">
-      <h3 className="text-lg font-semibold mb-2 text-emi_azul">{title}</h3>
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
-      {growth && (
-        <p className={`text-sm ${growth > 0 ? 'text-green-500' : 'text-red-500'}`}>
-          {growth > 0 ? '↑' : '↓'} {Math.abs(growth).toFixed(2)}%
-        </p>
+      {loading ? (
+        <Skeleton active paragraph={{ rows: 2 }} />
+      ) : (
+        <>
+          <h3 className="text-lg font-semibold mb-2 text-emi_azul">{title}</h3>
+          <p className="text-2xl font-bold text-gray-800">{value}</p>
+          {growth && (
+            <p className={`text-sm ${growth > 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {growth > 0 ? '↑' : '↓'} {Math.abs(growth).toFixed(2)}%
+            </p>
+          )}
+        </>
       )}
     </div>
   );
@@ -90,31 +105,39 @@ const Dashboard = () => {
   const renderChart = (title, chart) => (
     <div className="bg-white rounded-lg shadow-md p-4 border-t-4 border-emi_azul transition-all duration-300 hover:shadow-lg">
       <h2 className="text-xl font-semibold mb-4 text-emi_azul">{title}</h2>
-      {chart}
+      {loading ? (
+        <Skeleton.Input style={{ width: '100%', height: 300 }} active={true} size="large" />
+      ) : (
+        chart
+      )}
     </div>
   );
 
   const renderTable = (title, headers, data, rowRenderer) => (
     <div className="bg-white rounded-lg shadow-md p-4 border-t-4 border-emi_azul transition-all duration-300 hover:shadow-lg">
       <h2 className="text-xl font-semibold mb-4 text-emi_azul">{title}</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="bg-emi_azul text-white">
-              {headers.map((header, index) => (
-                <th key={index} className="px-4 py-2">{header}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((item, index) => (
-              <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                {rowRenderer(item)}
+      {loading ? (
+        <Skeleton active paragraph={{ rows: 5 }} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-emi_azul text-emi_amarillo">
+                {headers.map((header, index) => (
+                  <th key={index} className="px-4 py-2">{header}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {data.map((item, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  {rowRenderer(item)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 
@@ -124,14 +147,12 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold">Dashboard de Gestión de Activos Fijos</h1>
       </header>
       
-      {dashboardData.kpis && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {renderKPICard("Total de Activos", dashboardData.kpis.totalAssets, dashboardData.kpis.monthlyGrowth.assets)}
-          {renderKPICard("Valor Total", formatCurrency(dashboardData.kpis.totalValue), dashboardData.kpis.monthlyGrowth.value)}
-          {renderKPICard("Activos Asignados", `${dashboardData.kpis.assignedAssets} (${dashboardData.kpis.assignedPercentage.toFixed(2)}%)`, dashboardData.kpis.monthlyGrowth.assigned)}
-          {renderKPICard("Bajas Pendientes", dashboardData.kpis.pendingDisposals)}
-        </div>
-      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {renderKPICard("Total de Activos", dashboardData.kpis?.totalAssets, dashboardData.kpis?.monthlyGrowth.assets)}
+        {renderKPICard("Valor Total", formatCurrency(dashboardData.kpis?.totalValue), dashboardData.kpis?.monthlyGrowth.value)}
+        {renderKPICard("Activos Asignados", `${dashboardData.kpis?.assignedAssets} (${dashboardData.kpis?.assignedPercentage.toFixed(2)}%)`, dashboardData.kpis?.monthlyGrowth.assigned)}
+        {renderKPICard("Bajas Pendientes", dashboardData.kpis?.pendingDisposals)}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {renderChart("Distribución de Activos por Categoría", (
@@ -216,9 +237,9 @@ const Dashboard = () => {
           dashboardData.latestAssignments,
           (assignment) => (
             <>
-              <td className="px-4 py-2">{assignment.assetId}</td>
-              <td className="px-4 py-2">{assignment.personnel}</td>
-              <td className="px-4 py-2">{formatDate(assignment.date)}</td>
+              <td className="px-4 py-2 text-emi_azul">{assignment.assetId}</td>
+              <td className="px-4 py-2 text-emi_azul">{assignment.personnel}</td>
+              <td className="px-4 py-2 text-emi_azul">{formatDate(assignment.date)}</td>
             </>
           )
         )}
@@ -229,10 +250,10 @@ const Dashboard = () => {
           dashboardData.highValueAssets,
           (asset) => (
             <>
-              <td className="px-4 py-2">{asset.id}</td>
-              <td className="px-4 py-2">{asset.name}</td>
-              <td className="px-4 py-2">{formatCurrency(asset.currentValue)}</td>
-              <td className="px-4 py-2">{asset.condition}</td>
+              <td className="px-4 py-2 text-emi_azul">{asset.id}</td>
+              <td className="px-4 py-2 text-emi_azul">{asset.name}</td>
+              <td className="px-4 py-2 text-emi_azul">{formatCurrency(asset.currentValue)}</td>
+              <td className="px-4 py-2 text-emi_azul">{asset.condition}</td>
             </>
           )
         )}

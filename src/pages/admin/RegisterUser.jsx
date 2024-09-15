@@ -171,7 +171,9 @@ const RegisterUser = ({ user, onClose, onSave }) => {
           </div>
         </form>
       </div>
+      <ToastContainer />
     </div>
+    
   );
 };
 

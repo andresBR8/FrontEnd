@@ -6,19 +6,26 @@ import axios from 'axios';
 import { CSVLink } from "react-csv";
 import ReactPaginate from 'react-paginate';
 
+const Skeleton = ({ width = "100%", height = "20px", className = "" }) => (
+  <div
+    className={`animate-pulse bg-gray-200 rounded ${className}`}
+    style={{ width, height }}
+  ></div>
+);
+
 export default function Personal() {
   const [personal, setPersonal] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000"; // Default value if VITE_API_URL is not set
+  const apiUrl = import.meta.env.VITE_API_URL ; 
   const itemsPerPage = 10;
 
   const fetchPersonal = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${apiUrl}/personal`);
+      const response = await axios.get(`${apiUrl}/personal/all`);
       setPersonal(response.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -185,6 +192,17 @@ export default function Personal() {
     };
   }, [personal]);
 
+  const renderSkeletonRow = () => (
+    <tr>
+      <td className="px-6 py-4 whitespace-nowrap"><Skeleton /></td>
+      <td className="px-6 py-4 whitespace-nowrap"><Skeleton /></td>
+      <td className="px-6 py-4 whitespace-nowrap"><Skeleton /></td>
+      <td className="px-6 py-4 whitespace-nowrap"><Skeleton /></td>
+      <td className="px-6 py-4 whitespace-nowrap"><Skeleton /></td>
+      <td className="px-6 py-4 whitespace-nowrap"><Skeleton width="80px" /></td>
+    </tr>
+  );
+
   return (
     <div className="p-4 bg-gray-100 min-h-screen">
       <div className="mb-8">
@@ -222,27 +240,23 @@ export default function Personal() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-emi_azul"></div>
-        </div>
-      ) : (
-        <>
-          <div className="bg-white shadow-md rounded-lg overflow-hidden mb-8">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-emi_azul">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">ID</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">CI</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Nombre</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Cargo</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Unidad</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedPersonal.map((persona) => (
+      <div className="bg-white shadow-md rounded-lg overflow-hidden mb-8">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-emi_azul">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">ID</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">CI</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Nombre</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Cargo</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Unidad</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-emi_amarillo uppercase tracking-wider">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {isLoading
+                ? Array(itemsPerPage).fill().map((_, index) => renderSkeletonRow())
+                : paginatedPersonal.map((persona) => (
                     <tr key={persona.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{persona.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{persona.ci}</td>
@@ -256,130 +270,138 @@ export default function Personal() {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-          <div className="flex justify-center mt-4 mb-8">
-            <ReactPaginate
-              previousLabel={"Anterior"}
-              nextLabel={"Siguiente"}
-              breakLabel={"..."}
-              pageCount={pageCount}
-              marginPagesDisplayed={2}
-              pageRangeDisplayed={5}
-              onPageChange={handlePageClick}
-              containerClassName={"pagination flex flex-wrap justify-center mt-4 mb-4"}
-              pageClassName={"m-1"}
-              pageLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
-              activeClassName={"bg-emi_azul text-white"}
-              previousClassName={"m-1"}
-              nextClassName={"m-1"}
-              previousLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
-              nextLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
-              disabledClassName={"opacity-50 cursor-not-allowed"}
+      <div className="flex justify-center mt-4 mb-8">
+        <ReactPaginate
+          previousLabel={"Anterior"}
+          nextLabel={"Siguiente"}
+          breakLabel={"..."}
+          pageCount={pageCount}
+          marginPagesDisplayed={2}
+          pageRangeDisplayed={5}
+          onPageChange={handlePageClick}
+          containerClassName={"pagination flex flex-wrap justify-center mt-4 mb-4"}
+          pageClassName={"m-1"}
+          pageLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
+          activeClassName={"bg-emi_azul text-white"}
+          previousClassName={"m-1"}
+          nextClassName={"m-1"}
+          previousLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
+          nextLinkClassName={"px-3 py-2 rounded-lg bg-white text-emi_azul border border-emi_azul hover:bg-emi_azul hover:text-white transition-colors"}
+          disabledClassName={"opacity-50 cursor-not-allowed"}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-2 text-center">Distribución de Personal por Unidad</h3>
+          {isLoading ? (
+            <Skeleton height="400px" />
+          ) : (
+            <ReactECharts 
+              option={distribucionPersonalOption} 
+              style={{ height: '400px' }} 
+              opts={{ renderer: 'svg' }}
             />
-          </div>
+          )}
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-2 text-center">Personal Activo vs Inactivo</h3>
+          {isLoading ? (
+            <Skeleton height="400px" />
+          ) : (
+            <ReactECharts 
+              option={activosVsInactivosOption} 
+              style={{ height: '400px' }} 
+              opts={{ renderer: 'svg' }}
+            />
+          )}
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-2 text-center">Distribución de Personal por Unidad</h3>
-              <ReactECharts 
-                option={distribucionPersonalOption} 
-                style={{ height: '400px' }} 
-                opts={{ renderer: 'svg' }}
-              />
+      {uploadResult && (
+        <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4 text-emi_azul">Resumen de Actualización</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevos Personales</h3>
+              <ul className="list-disc pl-5 text-emi_azul">
+                {uploadResult.nuevosPersonales.map((persona, index) => (
+                  <li key={index}>{persona.nombre} (CI: {persona.ci})</li>
+                ))}
+              </ul>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-2 text-center">Personal Activo vs Inactivo</h3>
-              <ReactECharts 
-                option={activosVsInactivosOption} 
-                style={{ height: '400px' }} 
-                opts={{ renderer: 'svg' }}
-              />
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevos Cargos</h3>
+              <ul className="list-disc pl-5 text-emi_azul">
+                {uploadResult.nuevosCargos.map((cargo, index) => (
+                  <li key={index}>{cargo}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-sem
+
+ibold mb-2 text-emi_amarillo">Nuevas Unidades</h3>
+              <ul className="list-disc pl-5 text-emi_azul">
+                {uploadResult.nuevasUnidades.map((unidad, index) => (
+                  <li key={index}>{unidad}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Personal Inactivo</h3>
+              <ul className="list-disc pl-5 text-emi_azul">
+                {uploadResult.personalInactivo.map((persona, index) => (
+                  <li key={index}>{persona.nombre} (CI: {persona.ci}) - {persona.motivo}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Personal Actualizado</h3>
+              <ul className="list-disc pl-5 text-emi_azul">
+                {uploadResult.personalActualizado.map((persona, index) => (
+                  <li key={index}>
+                    {persona.nombre} (CI: {persona.ci})
+                    <ul className="list-circle pl-5">
+                      {persona.cambios.map((cambio, cambioIndex) => (
+                        <li key={cambioIndex}>{cambio}</li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-
-          {uploadResult && (
-            <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-              <h2 className="text-2xl font-bold mb-4 text-emi_azul">Resumen de Actualización</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevos Personales</h3>
-                  <ul className="list-disc pl-5 text-emi_azul">
-                    {uploadResult.nuevosPersonales.map((persona, index) => (
-                      <li key={index}>{persona.nombre} (CI: {persona.ci})</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevos Cargos</h3>
-                  <ul className="list-disc pl-5 text-emi_azul">
-                    {uploadResult.nuevosCargos.map((cargo, index) => (
-                      <li key={index}>{cargo}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevas Unidades</h3>
-                  <ul className="list-disc pl-5 text-emi_azul">
-                    {uploadResult.nuevasUnidades.map((unidad, index) => (
-                      <li key={index}>{unidad}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Personal Inactivo</h3>
-                  <ul className="list-disc pl-5 text-emi_azul">
-                    {uploadResult.personalInactivo.map((persona, index) => (
-                      <li key={index}>{persona.nombre} (CI: {persona.ci}) - {persona.motivo}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Personal Actualizado</h3>
-                  <ul className="list-disc pl-5 text-emi_azul">
-                    {uploadResult.personalActualizado.map((persona, index) => (
-                      <li key={index}>
-                        {persona.nombre} (CI: {persona.ci})
-                        <ul className="list-circle pl-5">
-                          {persona.cambios.map((cambio, cambioIndex) => (
-                            <li key={cambioIndex}>{cambio}</li>
-                          ))}
-                        </ul>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              <div className="mt-4">
-                <p><strong>Personal sin cambios:</strong> {uploadResult.personalSinCambios}</p>
-                <p><strong>Total procesados:</strong> {uploadResult.totalProcesados}</p>
-              </div>
-              {uploadResult.advertencias.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Advertencias</h3>
-                  <ul className="list-disc pl-5 text-emi_azul">
-                    {uploadResult.advertencias.map((advertencia, index) => (
-                      <li key={index}>{advertencia}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {uploadResult.errores.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Errores</h3>
-                  <ul className="list-disc pl-5 text-emi_azul">
-                    {uploadResult.errores.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+          <div className="mt-4">
+            <p><strong>Personal sin cambios:</strong> {uploadResult.personalSinCambios}</p>
+            <p><strong>Total procesados:</strong> {uploadResult.totalProcesados}</p>
+          </div>
+          {uploadResult.advertencias.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Advertencias</h3>
+              <ul className="list-disc pl-5 text-emi_azul">
+                {uploadResult.advertencias.map((advertencia, index) => (
+                  <li key={index}>{advertencia}</li>
+                ))}
+              </ul>
             </div>
           )}
-        </>
+          {uploadResult.errores.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Errores</h3>
+              <ul className="list-disc pl-5 text-emi_azul">
+                {uploadResult.errores.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

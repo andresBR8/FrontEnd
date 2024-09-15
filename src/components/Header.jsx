@@ -4,22 +4,20 @@ import { Menu, MenuItem, MenuButton } from "@szhsin/react-menu";
 import "@szhsin/react-menu/dist/index.css";
 import "@szhsin/react-menu/dist/transitions/slide.css";
 import { Link, useNavigate } from "react-router-dom";
-import axios from 'axios';
-import { io } from 'socket.io-client';
 import Swal from "sweetalert2";
 import 'sweetalert2/dist/sweetalert2.min.css';
-
+import { useWebSocket } from '../pages/admin/WebSocketContext'
 const Header = () => {
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
   const [rol, setRol] = useState('');
   const [notificaciones, setNotificaciones] = useState([]);
-  const apiUrl = import.meta.env.VITE_API_URL;
-  const notificationSound = new Audio('/notificacion.mp3');
   const navigate = useNavigate();
+  const socket = useWebSocket(); // Usamos el WebSocket desde el contexto
 
   useEffect(() => {
+    // Cargar datos del localStorage
     setNombre(localStorage.getItem('nombre') || '');
     setApellido(localStorage.getItem('apellido') || '');
     setEmail(localStorage.getItem('email') || '');
@@ -28,70 +26,43 @@ const Header = () => {
     const savedNotifications = JSON.parse(localStorage.getItem('notificaciones')) || [];
     setNotificaciones(savedNotifications);
 
-    const socket = io(apiUrl, {
-      withCredentials: true,
-    });
+    if (socket) {
+      // Emitir el rol para establecer la conexión
+      socket.emit('setRole', localStorage.getItem('role'));
 
-    socket.emit('setRole', localStorage.getItem('role'));
-
-    // Captura de notificaciones relacionadas con la asignación
-    socket.on('asignacion-creada', (data) => {
-      const newNotification = { 
-        type: 'success', 
-        message: `${data.mensaje}`, 
-        timestamp: new Date().toISOString() 
-      };
-      handleNewNotification(newNotification);
-    });
-
-    socket.on('asignacion-actualizada', (data) => {
-      const newNotification = { 
-        type: 'info', 
-        message: `Asignación actualizada por ${data.fkUsuario}`, 
-        timestamp: new Date().toISOString() 
-      };
-      handleNewNotification(newNotification);
-    });
-
-    socket.on('asignacion-eliminada', (data) => {
-      const newNotification = { 
-        type: 'warning', 
-        message: `Asignación eliminada`, 
-        timestamp: new Date().toISOString() 
-      };
-      handleNewNotification(newNotification);
-    });
-
-    // Otras notificaciones, como las de backup
-    socket.on('backup-success', (data) => {
-      if (['Administrador', 'Encargado'].includes(localStorage.getItem('role'))) {
+      // Escuchar las notificaciones recibidas desde el socket
+      socket.on('nuevaAsignacion', (data) => {
         const newNotification = { 
           type: 'success', 
-          message: `Backup realizado exitosamente`, 
-          backupUrl: data.backupUrl, 
+          message: `${data.message}`, 
           timestamp: new Date().toISOString() 
         };
         handleNewNotification(newNotification);
-      }
-    });
+      });
 
-    socket.on('backup-error', (data) => {
-      if (['Administrador', 'Encargado'].includes(localStorage.getItem('role'))) {
+      socket.on('asignacion-actualizada', (data) => {
         const newNotification = { 
-          type: 'error', 
-          message: data.message, 
+          type: 'info', 
+          message: `Asignación actualizada por ${data.fkUsuario}`, 
           timestamp: new Date().toISOString() 
         };
         handleNewNotification(newNotification);
-      }
-    });
+      });
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [apiUrl]);
+      socket.on('asignacion-eliminada', (data) => {
+        const newNotification = { 
+          type: 'warning', 
+          message: `Asignación eliminada`, 
+          timestamp: new Date().toISOString() 
+        };
+        handleNewNotification(newNotification);
+      });
+    }
+  }, [socket]);
 
   const handleNewNotification = (notification) => {
+    const notificationSound = new Audio('../../public/notificacion.mp3');
+
     setNotificaciones((prev) => {
       const isDuplicate = prev.some((noti) => noti.message === notification.message && noti.timestamp === notification.timestamp);
       if (isDuplicate) return prev;
@@ -117,7 +88,7 @@ const Header = () => {
 
     if (result.isConfirmed) {
       try {
-        await axios.post(`${apiUrl}/backup`);
+        await axios.post(`${import.meta.env.VITE_API_URL}/backup`);
         Swal.fire({
           position: 'top-end',
           icon: 'success',
@@ -182,24 +153,14 @@ const Header = () => {
                     <span>{notificacion.type === 'success' ? 'Notificación Exitosa' : 'Error de Notificación'}</span>
                     <span className="text-[8px]">{new Date(notificacion.timestamp).toLocaleDateString()}</span>
                   </div>
-                  <p className="text-gray-500 text-xs">
-                    {notificacion.message}
-                  </p>
-                  {notificacion.backupUrl && (
-                    <button onClick={() => window.open(notificacion.backupUrl, '_blank')} className="text-blue-500 text-xs underline">
-                      Descargar Backup
-                    </button>
-                  )}
+                  <p className="text-gray-500 text-xs">{notificacion.message}</p>
                 </div>
               </div>
             </MenuItem>
           ))}
           <hr className="my-6 border-gray-500" />
           <MenuItem className="p-0 hover:bg-transparent flex justify-center cursor-default">
-            <Link
-              to="/"
-              className="text-gray-400 text-sm hover:text-white transition-colors"
-            >
+            <Link to="/" className="text-gray-400 text-sm hover:text-white transition-colors">
               Todas las notificaciones
             </Link>
           </MenuItem>
@@ -208,7 +169,7 @@ const Header = () => {
           menuButton={
             <MenuButton className="flex items-center gap-x-2 hover:bg-secondary-100 p-2 rounded-lg transition-colors">
               <img
-                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad"
+                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Fead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo_emi.jpg?alt=media&token=c303d685-f255-4cd6-9e90-2a8b9b353e03"
                 className="w-12 h-12 object-cover rounded-full"
               />
               <span className="text-primary">{nombre} {apellido}</span>
@@ -227,7 +188,7 @@ const Header = () => {
               className="rounded-lg transition-colors text-gray-300 hover:bg-secondary-100 flex items-center gap-x-4 py-2 px-6 flex-1"
             >
               <img
-                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad"
+                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Fead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo_emi.jpg?alt=media&token=c303d685-f255-4cd6-9e90-2a8b9b353e03"
                 className="w-8 h-8 object-cover rounded-full"
               />
               <div className="flex flex-col text-sm">

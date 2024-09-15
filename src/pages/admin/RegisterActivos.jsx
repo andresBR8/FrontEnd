@@ -5,6 +5,7 @@ import moment from 'moment-timezone';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useDropzone } from 'react-dropzone';
+import { message } from 'antd';
 
 const RegisterActivos = ({ onClose, onSave }) => {
   const [partidas, setPartidas] = useState([]);
@@ -171,7 +172,7 @@ const RegisterActivos = ({ onClose, onSave }) => {
     console.log(activosList); 
     try {
       await axios.post(`${apiUrl}/activo-modelo`, activosList);
-      toast.success('Activos registrados exitosamente');
+      message.success('Activos registrados exitosamente');
       onSave();
       onClose();
     } catch (error) {

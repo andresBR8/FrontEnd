@@ -15,8 +15,8 @@ module.exports = {
         },
       },
       backgroundImage: {
-        'login-background': "url('https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad')",
-        'login-background2': "url('https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2FLOGOEMI.jpg?alt=media&token=8aecd739-397a-4b90-8954-04971521b1ad')"
+        'login-background': "url('https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Fead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo_emi.jpg?alt=media&token=c303d685-f255-4cd6-9e90-2a8b9b353e03')",
+        'login-background2': "url('https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Fead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo_emi.jpg?alt=media&token=c303d685-f255-4cd6-9e90-2a8b9b353e03')"
       },
       backgroundSize: {
         'size-cover': 'cover'

@@ -9,6 +9,7 @@ import * as XLSX from "xlsx";
 import { Pie } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { debounce } from 'lodash';
+import { message, Skeleton } from "antd";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -49,15 +50,16 @@ const Bajas = () => {
       const modelosFiltrados = modelosResponse.data.data.map((modelo) => ({
         ...modelo,
         activoUnidades: modelo.activoUnidades.filter(
-          (unidad) => unidad.estadoCondicion !== "BAJA" 
+          (unidad) => unidad.estadoCondicion !== "BAJA" && unidad.asignado === false
         ),
       }));
       setModelos(modelosFiltrados);
       setFilteredModelos(modelosFiltrados);
       setBajas(bajasResponse.data.data);
+      message.success("Datos cargados correctamente");
     } catch (error) {
       console.error("Error fetching data:", error);
-      toast.error("Error al cargar los datos. Por favor, intente de nuevo.");
+      message.error("Error al cargar los datos");
     } finally {
       setIsLoading(false);
     }
@@ -158,8 +160,65 @@ const Bajas = () => {
   const exportToPDF = () => {
     setIsExporting(true);
     const doc = new jsPDF();
-    doc.text("Reporte de Bajas", 20, 10);
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+  
+    // Add EMI logo
+    const logoUrl = "https://i.ibb.co/QdCDD3j/ead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo-emi.jpg";
+    doc.addImage(logoUrl, "PNG", 10, 10, 30, 30);
+  
+    // Add title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(0, 48, 135); // EMI blue color
+    doc.text("Reporte de Bajas de Activos", pageWidth / 2, 30, { align: "center" });
+  
+    // Add date
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Fecha de generación: ${new Date().toLocaleDateString()}`, pageWidth - 10, 40, { align: "right" });
+  
+    // Add summary
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(0, 48, 135);
+    doc.text("Resumen de Bajas", 10, 55);
+  
+    const totalBajas = bajas.length;
+    const aprobadas = bajas.filter(baja => baja.estado === 'APROBADA').length;
+    const rechazadas = bajas.filter(baja => baja.estado === 'RECHAZADA').length;
+    const pendientes = bajas.filter(baja => baja.estado === 'PENDIENTE').length;
+  
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Total de bajas: ${totalBajas}`, 10, 65);
+    doc.text(`Aprobadas: ${aprobadas}`, 10, 72);
+    doc.text(`Rechazadas: ${rechazadas}`, 10, 79);
+    doc.text(`Pendientes: ${pendientes}`, 10, 86);
+  
+    // Add pie chart
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    
+    new ChartJS(ctx, {
+      type: 'pie',
+      data: chartData,
+      options: {
+        ...chartOptions,
+        animation: false,
+        responsive: false,
+      }
+    });
+  
+    doc.addImage(canvas.toDataURL(), 'PNG', pageWidth - 80, 55, 70, 70);
+  
+    // Add table
     doc.autoTable({
+      startY: 100,
       head: [["ID", "Fecha", "Unidad", "Motivo", "Estado"]],
       body: bajas.map((baja) => [
         baja.id,
@@ -168,8 +227,26 @@ const Bajas = () => {
         baja.motivo,
         baja.estado,
       ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
     });
-    doc.save("reporte_bajas.pdf");
+  
+    // Add footer
+    const pageCount = doc.internal.getNumberOfPages();
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.text(
+        `Página ${i} de ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: "center" }
+      );
+    }
+  
+    doc.save("reporte_bajas_activos.pdf");
     setIsExporting(false);
   };
 
@@ -232,9 +309,20 @@ const Bajas = () => {
     },
   };
 
+  const renderSkeletonRow = () => (
+    <tr>
+      <td className="px-6 py-4"><Skeleton active size="small" /></td>
+      <td className="px-6 py-4"><Skeleton active size="small" /></td>
+      <td className="px-6 py-4"><Skeleton active size="small" /></td>
+      <td className="px-6 py-4"><Skeleton active size="small" /></td>
+      <td className="px-6 py-4"><Skeleton active size="small" /></td>
+      {isAdmin && <td className="px-6 py-4"><Skeleton active size="small" /></td>}
+    </tr>
+  );
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-emi_azul mb-8 text-center">Gestión de Bajas de Activos</h1>
+      <h1 className="text-3xl font-bold text-emi_azul mb-8 text-left">Gestión de Bajas de Activos</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Sección de selección de unidad y solicitud de baja */}
@@ -317,92 +405,39 @@ const Bajas = () => {
             </div>
           </div>
           
-          {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-emi_azul"></div>
-            </div>
-          ) : (
-            <>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-emi_amarillo uppercase bg-emi_azul">
-                    <tr>
-                      <th className="px-6 py-3">ID</th>
-                      <th className="px-6 py-3">Fecha</th>
-                      <th className="px-6 py-3">Unidad</th>
-                      <th className="px-6 py-3">Motivo</th>
-                      <th className="px-6 py-3">Estado</th>
-                      {isAdmin && <th className="px-6 py-3">Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentBajas.map((baja) => (
-                      <tr key={baja.id} className="bg-white border-b hover: bg-gray-50 text-emi_azul">
-                        <td className="px-6 py-4">{baja.id}</td>
-                        <td className="px-6 py-4">{new Date(baja.fecha).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{baja.activoUnidad.codigo}</td>
-                        <td className="px-6 py-4">{baja.motivo}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            baja.estado === "APROBADA" ? "bg-green-100 text-green-800" :
-                            baja.estado === "RECHAZADA" ? "bg-red-100 text-red-800" :
-                            "bg-yellow-100 text-yellow-800"
-                          }`}>
-                            {baja.estado}
-                          </span>
-                        </td>
-                        {isAdmin && baja.estado === "PENDIENTE" && (
-                          <td className="px-6 py-4">
-                            <button
-                              onClick={() => handleAprobarBaja(baja.id, true)}
-                              className="text-green-600 hover:text-green-900 mr-2"
-                              aria-label="Aprobar baja"
-                            >
-                              <RiCheckLine size={20} />
-                            </button>
-                            <button
-                              onClick={() => handleAprobarBaja(baja.id, false)}
-                              className="text-red-600 hover:text-red-900"
-                              aria-label="Rechazar baja"
-                            >
-                              <RiCloseLine size={20} />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Stacked View */}
-              <div className="md:hidden bg-white shadow-md rounded-lg mb-4 p-4">
-                {currentBajas.map((baja) => (
-                  <div key={baja.id} className="border-b pb-4 mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="text-lg font-semibold text-emi_azul">Unidad: {baja.activoUnidad.codigo}</div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-1 text-sm">
-                      <div>
-                        <span className="font-medium">ID:</span> {baja.id}
-                      </div>
-                      <div>
-                        <span className="font-medium">Fecha:</span> {new Date(baja.fecha).toLocaleDateString()}
-                      </div>
-                      <div>
-                        <span className="font-medium">Motivo:</span> {baja.motivo}
-                      </div>
-                      <div>
-                        <span className="font-medium">Estado:</span> <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            baja.estado === "APROBADA" ? "bg-green-100 text-green-800" :
-                            baja.estado === "RECHAZADA" ? "bg-red-100 text-red-800" :
-                            "bg-yellow-100 text-yellow-800"
-                          }`}>
-                            {baja.estado}
-                          </span>
-                      </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-emi_amarillo uppercase bg-emi_azul">
+                <tr>
+                  <th className="px-6 py-3">ID</th>
+                  <th className="px-6 py-3">Fecha</th>
+                  <th className="px-6 py-3">Unidad</th>
+                  <th className="px-6 py-3">Motivo</th>
+                  <th className="px-6 py-3">Estado</th>
+                  {isAdmin && <th className="px-6 py-3">Acciones</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  Array(itemsPerPage).fill().map((_, index) => renderSkeletonRow())
+                ) : (
+                  currentBajas.map((baja) => (
+                    <tr key={baja.id} className="bg-white border-b hover:bg-gray-50 text-emi_azul">
+                      <td className="px-6 py-4">{baja.id}</td>
+                      <td className="px-6 py-4">{new Date(baja.fecha).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">{baja.activoUnidad.codigo}</td>
+                      <td className="px-6 py-4">{baja.motivo}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          baja.estado === "APROBADA" ? "bg-green-100 text-green-800" :
+                          baja.estado === "RECHAZADA" ? "bg-red-100 text-red-800" :
+                          "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {baja.estado}
+                        </span>
+                      </td>
                       {isAdmin && baja.estado === "PENDIENTE" && (
-                        <div className="flex space-x-2 mt-2">
+                        <td className="px-6 py-4">
                           <button
                             onClick={() => handleAprobarBaja(baja.id, true)}
                             className="text-green-600 hover:text-green-900 mr-2"
@@ -417,28 +452,28 @@ const Bajas = () => {
                           >
                             <RiCloseLine size={20} />
                           </button>
-                        </div>
+                        </td>
                       )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-              <div className="flex justify-center mt-4">
-                {Array.from({ length: Math.ceil(filteredBajas.length / itemsPerPage) }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => paginate(i + 1)}
-                    className={`mx-1 px-3 py-1 rounded ${
-                      currentPage === i + 1 ? 'bg-emi_azul text-white' : 'bg-gray-200 text-emi_azul hover:bg-emi_azul hover:text-white'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          <div className="flex justify-center mt-4">
+            {Array.from({ length: Math.ceil(filteredBajas.length / itemsPerPage) }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => paginate(i + 1)}
+                className={`mx-1 px-3 py-1 rounded ${
+                  currentPage === i + 1 ? 'bg-emi_azul text-white' : 'bg-gray-200 text-emi_azul hover:bg-emi_azul hover:text-white'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

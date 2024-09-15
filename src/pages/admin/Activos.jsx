@@ -1014,11 +1014,11 @@ export default function Activos() {
       </Modal>
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold mb-4">Estados de Activos</h2>
+          <h2 className="text-xl font-bold mb-4 text-emi_azul">Estados de Activos</h2>
           <Pie data={estadosData} />
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold mb-4">Activos por Modelo</h2>
+          <h2 className="text-xl font-bold mb-4 text-emi_azul">Activos por Modelo</h2>
           <Bar data={activosPorModeloData} />
         </div>
       </div>

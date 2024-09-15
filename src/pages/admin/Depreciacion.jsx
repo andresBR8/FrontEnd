@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -16,6 +16,12 @@ import {
 } from 'chart.js';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { DatePicker, Select, Input, Button, Table, Space, Skeleton } from 'antd';
+import { RiFileDownloadLine, RiFilterOffLine, RiAddLine, RiSubtractLine } from "react-icons/ri";
+import moment from 'moment';
+
+const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 ChartJS.register(
   CategoryScale,
@@ -30,14 +36,26 @@ ChartJS.register(
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
+const ComparisonChart = React.lazy(() => import('./ComparisonChart'));
+const CurrentYearChart = React.lazy(() => import('./CurrentYearChart'));
+
 export default function Depreciacion() {
   const [comparisonYears, setComparisonYears] = useState([new Date().getFullYear()]);
   const [depreciationYear, setDepreciationYear] = useState(new Date().getFullYear());
   const [depreciationMethod, setDepreciationMethod] = useState('LINEA_RECTA');
   const [comparisonData, setComparisonData] = useState([]);
   const [depreciationData, setDepreciationData] = useState([]);
+  const [filteredDepreciationData, setFilteredDepreciationData] = useState([]);
   const [currentYearDepreciation, setCurrentYearDepreciation] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState({
+    comparison: true,
+    currentYear: true,
+    depreciation: true
+  });
+  const [dateRange, setDateRange] = useState([moment().startOf('year'), moment()]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState("codigo");
+  const [sortOrder, setSortOrder] = useState("ascend");
 
   useEffect(() => {
     fetchComparisonData();
@@ -49,7 +67,7 @@ export default function Depreciacion() {
   }, [depreciationYear, depreciationMethod]);
 
   const fetchComparisonData = async () => {
-    setLoading(true);
+    setLoading(prev => ({ ...prev, comparison: true }));
     try {
       const response = await axios.get(`${apiUrl}/depreciacion/comparacion`, {
         params: { años: comparisonYears.join(',') }
@@ -59,27 +77,28 @@ export default function Depreciacion() {
       console.error('Error fetching comparison data:', error);
       toast.error('No se pudo cargar la comparación de depreciaciones.');
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, comparison: false }));
     }
   };
 
   const fetchDepreciationData = async () => {
-    setLoading(true);
+    setLoading(prev => ({ ...prev, depreciation: true }));
     try {
       const response = await axios.get(`${apiUrl}/depreciacion/metodo`, {
         params: { año: depreciationYear, metodo: depreciationMethod }
       });
       setDepreciationData(response.data);
+      setFilteredDepreciationData(response.data);
     } catch (error) {
       console.error('Error fetching depreciation data:', error);
       toast.error('No se pudo cargar los datos de depreciación.');
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, depreciation: false }));
     }
   };
 
   const fetchCurrentYearDepreciation = async () => {
-    setLoading(true);
+    setLoading(prev => ({ ...prev, currentYear: true }));
     try {
       const response = await axios.get(`${apiUrl}/depreciacion/actual`);
       setCurrentYearDepreciation(response.data);
@@ -87,7 +106,7 @@ export default function Depreciacion() {
       console.error('Error fetching current year depreciation:', error);
       toast.error('No se pudo cargar la depreciación del año actual.');
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, currentYear: false }));
     }
   };
 
@@ -100,12 +119,69 @@ export default function Depreciacion() {
     setComparisonYears(comparisonYears.filter(y => y !== year));
   };
 
+  const handleDateRangeChange = (dates) => {
+    setDateRange(dates);
+    applyFilters(dates, searchTerm);
+  };
+
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    applyFilters(dateRange, value);
+  };
+
+  const applyFilters = (dates, search) => {
+    let filtered = [...depreciationData];
+
+    if (dates && dates[0] && dates[1]) {
+      const startDate = dates[0].startOf('day');
+      const endDate = dates[1].endOf('day');
+      filtered = filtered.filter(item => 
+        item.fecha && moment(item.fecha).isBetween(startDate, endDate, null, '[]')
+      );
+    }
+
+    if (search) {
+      filtered = filtered.filter(item => 
+        item.codigo.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    setFilteredDepreciationData(filtered);
+  };
+
+  const clearFilters = () => {
+    setDateRange([moment().startOf('year'), moment()]);
+    setSearchTerm("");
+    setFilteredDepreciationData(depreciationData);
+  };
+
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Reporte de Depreciaciones", 14, 15);
-    
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // Add logo
+    const logoUrl = 'https://i.ibb.co/QdCDD3j/ead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo-emi.jpg';
+    doc.addImage(logoUrl, 'PNG', 10, 10, 30, 30);
+
+    // Add title and date
+    doc.setFontSize(18);
+    doc.setTextColor(0, 48, 135); // emi_azul color
+    doc.text("Reporte de Depreciaciones", pageWidth / 2, 25, { align: "center" });
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Generado el: ${moment().format('DD/MM/YYYY HH:mm')}`, pageWidth / 2, 35, { align: "center" });
+
+    // Add report characteristics
+    doc.setFontSize(10);
+    doc.text(`Años de comparación: ${comparisonYears.join(', ')}`, 14, 45);
+    doc.text(`Método de depreciación: ${depreciationMethod === 'LINEA_RECTA' ? 'Línea Recta' : 'Saldos Decrecientes'}`, 14, 52);
+    doc.text(`Año de depreciación: ${depreciationYear}`, 14, 59);
+
     // Comparison data table
-    doc.text("Comparación de Depreciaciones", 14, 25);
+    doc.setFontSize(14);
+    doc.setTextColor(0, 48, 135); // emi_azul color
+    doc.text("Comparación de Depreciaciones", 14, 70);
     const comparisonTableData = comparisonData.flatMap((yearData, index) => 
       yearData.map(monthData => [
         comparisonYears[index],
@@ -115,15 +191,21 @@ export default function Depreciacion() {
       ])
     );
     doc.autoTable({
-      startY: 30,
+      startY: 75,
       head: [['Año', 'Mes', 'Línea Recta', 'Saldos Decrecientes']],
       body: comparisonTableData,
+      theme: 'grid',
+      styles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
+      headStyles: { fillColor: [255, 191, 0], textColor: [0, 48, 135], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
     });
 
     // Depreciation data table
     doc.addPage();
+    doc.setFontSize(14);
+    doc.setTextColor(0, 48, 135); // emi_azul color
     doc.text(`Depreciación por Método (${depreciationYear})`, 14, 15);
-    const depreciationTableData = depreciationData.map(item => [
+    const depreciationTableData = filteredDepreciationData.map(item => [
       item.codigo,
       item.costoInicial.toFixed(2),
       item.valorDepreciacion.toFixed(2),
@@ -133,10 +215,16 @@ export default function Depreciacion() {
       startY: 20,
       head: [['Código', 'Costo Inicial', 'Valor Depreciación', 'Nuevo Costo']],
       body: depreciationTableData,
+      theme: 'grid',
+      styles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
+      headStyles: { fillColor: [255, 191, 0], textColor: [0, 48, 135], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
     });
 
     // Current year depreciation table
     doc.addPage();
+    doc.setFontSize(14);
+    doc.setTextColor(0, 48, 135); // emi_azul color
     doc.text(`Depreciación del Año Actual (${new Date().getFullYear()})`, 14, 15);
     const currentYearTableData = currentYearDepreciation.map(item => [
       item.codigo,
@@ -150,177 +238,193 @@ export default function Depreciacion() {
       startY: 20,
       head: [['Código', 'Costo Inicial', 'Valor LR', 'Valor SD', 'Nuevo Costo LR', 'Nuevo Costo SD']],
       body: currentYearTableData,
+      theme: 'grid',
+      styles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
+      headStyles: { fillColor: [255, 191, 0], textColor: [0, 48, 135], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
     });
+
+    // Add page numbers
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Página ${i} de ${pageCount}`, pageWidth - 20, pageHeight - 10);
+    }
 
     doc.save('reporte_depreciaciones.pdf');
     toast.success('El reporte en PDF ha sido generado y descargado.');
   };
 
-  const comparisonChartData = {
-    labels: comparisonData[0]?.map(item => item.month) || [],
-    datasets: comparisonYears.flatMap((year, index) => [
-      {
-        label: `Línea Recta ${year}`,
-        data: comparisonData[index]?.map(item => item.lineaRecta) || [],
-        backgroundColor: `rgba(75, 192, 192, ${0.6 - 0.1 * index})`,
-        borderColor: `rgba(75, 192, 192, ${0.8 - 0.1 * index})`,
-        borderWidth: 1,
-      },
-      {
-        label: `Saldos Decrecientes ${year}`,
-        data: comparisonData[index]?.map(item => item.saldosDecrecientes) || [],
-        backgroundColor: `rgba(255, 159, 64, ${0.6 - 0.1 * index})`,
-        borderColor: `rgba(255, 159, 64, ${0.8 - 0.1 * index})`,
-        borderWidth: 1,
-      }
-    ])
-  };
-
-  const currentYearChartData = {
-    labels: currentYearDepreciation.map(item => item.codigo),
-    datasets: [
-      {
-        label: 'Línea Recta',
-        data: currentYearDepreciation.map(item => item.valorLineaRecta),
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-      },
-      {
-        label: 'Saldos Decrecientes',
-        data: currentYearDepreciation.map(item => item.valorSaldosDecrecientes),
-        borderColor: 'rgb(255, 159, 64)',
-        backgroundColor: 'rgba(255, 159, 64, 0.5)',
-      }
-    ]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Comparación de Métodos de Depreciación',
-      },
+  const columns = [
+    {
+      title: 'Código',
+      dataIndex: 'codigo',
+      key: 'codigo',
+      sorter: (a, b) => a.codigo.localeCompare(b.codigo),
     },
-  };
-
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen">Cargando...</div>;
-  }
+    {
+      title: 'Costo Inicial',
+      dataIndex: 'costoInicial',
+      key: 'costoInicial',
+      render: (text) => text.toFixed(2),
+      sorter: (a, b) => a.costoInicial - b.costoInicial,
+    },
+    {
+      title: 'Valor Depreciación',
+      dataIndex: 'valorDepreciacion',
+      key: 'valorDepreciacion',
+      render: (text) => text.toFixed(2),
+      sorter: (a, b) => a.valorDepreciacion - b.valorDepreciacion,
+    },
+    {
+      title: 'Nuevo Costo',
+      dataIndex: 'nuevoCosto',
+      key: 'nuevoCosto',
+      render: (text) => text.toFixed(2),
+      sorter: (a, b) => a.nuevoCosto - b.nuevoCosto,
+    },
+  ];
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold text-center mb-8">Dashboard de Depreciación</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div className="container mx-auto p-4 bg-gray-100">
+      <h1 className="text-3xl font-bold text-left mb-8 text-emi_azul">Dashboard de Depreciación</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Comparison Section */}
         <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-semibold mb-4">Comparación de Depreciaciones</h2>
-          <div className="mb-4">
+          <h2 className="text-2xl font-semibold mb-4 text-emi_azul">Comparación de Depreciaciones</h2>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             {comparisonYears.map(year => (
-              <div key={year} className="flex items-center mb-2">
-                <span className="mr-2">{year}</span>
+              <div key={year} className="flex items-center bg-gray-100 rounded-full px-3 py-1">
+                <span className="mr-2 text-emi_azul">{year}</span>
                 <button 
-                  className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                  className="text-red-500 hover:text-red-700"
                   onClick={() => handleRemoveYear(year)}
                 >
-                  Eliminar
+                  <RiSubtractLine />
                 </button>
               </div>
             ))}
             <button 
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              className="bg-emi_amarillo text-emi_azul rounded-full px-3 py-1 flex items-center hover:bg-emi_azul hover:text-emi_amarillo transition-colors"
               onClick={handleAddYear}
             >
-              Añadir Año
+              <RiAddLine className="mr-1" /> Añadir Año
             </button>
           </div>
-          <div className="h-80">
-            <Bar data={comparisonChartData} options={chartOptions} />
-          </div>
+          <Suspense fallback={<Skeleton active />}>
+            {loading.comparison ? (
+              <Skeleton active />
+            ) : (
+              <ComparisonChart data={comparisonData} years={comparisonYears} />
+            )}
+          </Suspense>
         </div>
 
         {/* Current Year Depreciation Section */}
         <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-semibold mb-4">Depreciación del Año Actual</h2>
-          <div className="h-80">
-            <Line 
-              data={currentYearChartData}
-              options={{
-                ...chartOptions,
-                plugins: {
-                  ...chartOptions.plugins,
-                  title: {
-                    ...chartOptions.plugins.title,
-                    text: `Depreciación del Año ${new Date().getFullYear()}`,
-                  },
-                },
-              }}
-            />
-          </div>
+          <h2 className="text-2xl font-semibold mb-4 text-emi_azul">Depreciación del Año Actual</h2>
+          <Suspense fallback={<Skeleton active />}>
+            {loading.currentYear ? (
+              <Skeleton active />
+            ) : (
+              <CurrentYearChart data={currentYearDepreciation} />
+            )}
+          </Suspense>
         </div>
       </div>
 
       {/* Depreciation by Method Section */}
-      <div className="mt-8 bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-semibold mb-4">Depreciación por Método y Año</h2>
+      <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
+        <h2 className="text-2xl font-semibold mb-4 text-emi_azul">Depreciación por Método y Año</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block mb-2">Año:</label>
-            <input 
-              type="number" 
-              value={depreciationYear}
-              onChange={(e) => setDepreciationYear(Number(e.target.value))}
-              className="w-full p-2 border rounded"
+            <label className="block mb-2 text-emi_azul">Año:</label>
+            <DatePicker
+              picker="year"
+              value={moment(depreciationYear.toString())}
+              onChange={(date) => setDepreciationYear(date.year())}
+              className="w-full border-emi_azul"
             />
           </div>
           <div>
-            <label className="block mb-2">Método:</label>
-            <select
+            <label className="block mb-2 text-emi_azul">Método:</label>
+            <Select
               value={depreciationMethod}
-              onChange={(e) => setDepreciationMethod(e.target.value)}
-              className="w-full p-2 border rounded"
+              onChange={(value) => setDepreciationMethod(value)}
+              className="w-full"
             >
-              <option value="LINEA_RECTA">Línea Recta</option>
-              <option value="SALDOS_DECRECIENTES">Saldos Decrecientes</option>
-            </select>
+              <Option value="LINEA_RECTA">Línea Recta</Option>
+              <Option value="SALDOS_DECRECIENTES">Saldos Decrecientes</Option>
+            </Select>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 bg-gray-100">Código</th>
-                <th className="px-4 py-2 bg-gray-100">Costo Inicial</th>
-                <th className="px-4 py-2 bg-gray-100">Valor Depreciación</th>
-                <th className="px-4 py-2 bg-gray-100">Nuevo Costo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {depreciationData.map(item => (
-                <tr key={item.id}>
-                  <td className="border px-4 py-2">{item.codigo}</td>
-                  <td className="border px-4 py-2">{item.costoInicial.toFixed(2)}</td>
-                  <td className="border px-4 py-2">{item.valorDepreciacion.toFixed(2)}</td>
-                  <td className="border px-4 py-2">{item.nuevoCosto.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-wrap justify-between items-center mb-4">
+          <div className="flex flex-wrap items-center space-x-4 mb-4">
+            <RangePicker 
+              onChange={handleDateRangeChange}
+              value={dateRange}
+              className="w-full sm:w-auto mb-2 sm:mb-0 border-emi_azul"
+            />
+            <Input.Search
+              placeholder="Buscar por código"
+              onSearch={handleSearch}
+              style={{ width: 250 }}
+              className="w-full sm:w-auto mb-2 sm:mb-0"
+            />
+          </div>
+          <Space>
+            <Button
+              icon={<RiFilterOffLine />}
+              onClick={clearFilters}
+              className="bg-emi_azul text-white hover:bg-emi_azul-dark"
+            >
+              Limpiar Filtros
+            </Button>
+            <Button
+              icon={<RiFileDownloadLine />}
+              onClick={exportToPDF}
+              className="bg-emi_amarillo text-emi_azul hover:bg-emi_azul hover:text-emi_amarillo"
+            >
+              Exportar a PDF
+            </Button>
+          </Space>
         </div>
-      </div>
-
-      {/* Export Button */}
-      <div className="mt-8 flex justify-center">
-        <button 
-          className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-bold"
-          onClick={exportToPDF}
-        >
-          Exportar Reporte PDF
-        </button>
+        {loading.depreciation ? (
+          <Skeleton active />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table
+              columns={columns}
+              dataSource={filteredDepreciationData}
+              rowKey="id"
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showQuickJumper: true,
+              }}
+              onChange={(pagination, filters, sorter) => {
+                setSortField(sorter.field);
+                setSortOrder(sorter.order);
+              }}
+              className="border-emi_azul min-w-full"
+              scroll={{ x: true }}
+              expandable={{
+                expandedRowRender: (record) => (
+                  <div className="p-4 bg-gray-50">
+                    <p><strong>Código:</strong> {record.codigo}</p>
+                    <p><strong>Costo Inicial:</strong> {record.costoInicial.toFixed(2)}</p>
+                    <p><strong>Valor Depreciación:</strong> {record.valorDepreciacion.toFixed(2)}</p>
+                    <p><strong>Nuevo Costo:</strong> {record.nuevoCosto.toFixed(2)}</p>
+                  </div>
+                ),
+                rowExpandable: (record) => true,
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <ToastContainer />
