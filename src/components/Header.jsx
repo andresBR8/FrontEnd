@@ -39,11 +39,27 @@ const Header = () => {
         };
         handleNewNotification(newNotification);
       });
+      socket.on('nuevaAsignacion', (data) => {
+        const newNotification = { 
+          type: 'success', 
+          message: `${data.message}`, 
+          timestamp: new Date().toISOString() 
+        };
+        handleNewNotification(newNotification);
+      });
+      socket.on('nuevaBaja', (data) => {
+        const newNotification = { 
+          type: 'success', 
+          message: `${data.message}`, 
+          timestamp: new Date().toISOString() 
+        };
+        handleNewNotification(newNotification);
+      });
 
-      socket.on('asignacion-actualizada', (data) => {
+      socket.on('bajaAprobada', (data) => {
         const newNotification = { 
           type: 'info', 
-          message: `Asignación actualizada por ${data.fkUsuario}`, 
+          message: ` ${data.message}`, 
           timestamp: new Date().toISOString() 
         };
         handleNewNotification(newNotification);
