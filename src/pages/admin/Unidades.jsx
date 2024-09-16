@@ -19,13 +19,14 @@ export default function Personal() {
   const [currentPage, setCurrentPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
-  const apiUrl = import.meta.env.VITE_API_URL ; 
+  const [uploadStatus, setUploadStatus] = useState('');
+  const apiUrl = import.meta.env.VITE_API_URL;
   const itemsPerPage = 10;
 
   const fetchPersonal = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${apiUrl}/personal/all`);
+      const response = await axios.get(`${apiUrl}/personal`);
       setPersonal(response.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -37,6 +38,10 @@ export default function Personal() {
 
   useEffect(() => {
     fetchPersonal();
+    const storedResult = localStorage.getItem('uploadResult');
+    if (storedResult) {
+      setUploadResult(JSON.parse(storedResult));
+    }
   }, [fetchPersonal]);
 
   const handleFileUpload = async (event) => {
@@ -48,12 +53,35 @@ export default function Personal() {
 
     try {
       setIsLoading(true);
+      setUploadStatus('Iniciando carga del archivo...');
+
       const response = await axios.post(`${apiUrl}/personal/upload-csv`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadStatus(`Cargando archivo: ${percentCompleted}%`);
+        },
       });
+
+      setUploadStatus('Procesando datos...');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulating processing time
+
+      setUploadStatus('Generando unidades...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setUploadStatus('Generando cargos...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setUploadStatus('Creando personal...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setUploadStatus('Actualizando personal existente...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       setUploadResult(response.data.resumen);
+      localStorage.setItem('uploadResult', JSON.stringify(response.data.resumen));
       await fetchPersonal();
       Swal.fire('Éxito', 'Archivo CSV procesado correctamente', 'success');
     } catch (error) {
@@ -61,6 +89,7 @@ export default function Personal() {
       Swal.fire('Error', 'No se pudo procesar el archivo CSV', 'error');
     } finally {
       setIsLoading(false);
+      setUploadStatus('');
     }
   };
 
@@ -240,6 +269,15 @@ export default function Personal() {
         </div>
       </div>
 
+      {uploadStatus && (
+        <div className="mb-4 p-4 bg-blue-100 text-blue-700 rounded-md">
+          <p className="font-semibold">{uploadStatus}</p>
+          <div className="w-full bg-blue-200 rounded-full h-2.5 mt-2">
+            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '100%' }}></div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white shadow-md rounded-lg overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -344,9 +382,7 @@ export default function Personal() {
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-sem
-
-ibold mb-2 text-emi_amarillo">Nuevas Unidades</h3>
+              <h3 className="text-lg font-semibold mb-2 text-emi_amarillo">Nuevas Unidades</h3>
               <ul className="list-disc pl-5 text-emi_azul">
                 {uploadResult.nuevasUnidades.map((unidad, index) => (
                   <li key={index}>{unidad}</li>
