@@ -112,9 +112,9 @@ const CustodyDocument = ({ data, activos }) => {
           {activos.map((activo, index) => (
             <View key={index} style={styles.tableRow}>
               <View style={{...styles.tableCol, width: '5%'}}><Text style={styles.tableCell}>{index + 1}</Text></View>
-              <View style={{...styles.tableCol, width: '20%'}}><Text style={styles.tableCell}>{activo.label}</Text></View>
-              <View style={{...styles.tableCol, width: '50%'}}><Text style={styles.tableCellLeft}>{activo.nombre}</Text></View>
-              <View style={{...styles.tableCol, width: '10%'}}><Text style={styles.tableCell}>{activo.estado}</Text></View>
+              <View style={{...styles.tableCol, width: '20%'}}><Text style={styles.tableCell}>{activo.codigo}</Text></View>
+              <View style={{...styles.tableCol, width: '50%'}}><Text style={styles.tableCellLeft}>{activo.descripcion}</Text></View>
+              <View style={{...styles.tableCol, width: '10%'}}><Text style={styles.tableCell}>{activo.estadoActual}</Text></View>
               <View style={{...styles.tableCol, width: '20%'}}><Text style={styles.tableCell}>{formatDate(activo.fechaIngreso)}</Text></View>
             </View>
           ))}

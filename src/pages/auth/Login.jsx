@@ -6,7 +6,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Swal from 'sweetalert2';
 import { useWebSocket } from '../../pages/admin/WebSocketContext';
-
+import {message} from 'antd';
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -49,10 +49,7 @@ const Login = () => {
       navigate("/");
 
     } catch (error) {
-      console.log(error);
-      // Mostrar mensaje de error si ocurre un problema en la autenticación
-      const errorMessage = error.response?.data?.message || "Ocurrió un error al iniciar sesión.";
-      toast.error(errorMessage);
+      message.error(error.response?.data?.message?.message || 'Error de inicio de sesión');
     }
   };
 
@@ -120,7 +117,6 @@ const Login = () => {
             </Link>
           </span>
         </div>
-        <ToastContainer />
       </div>
     </div>
   );

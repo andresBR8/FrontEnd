@@ -46,6 +46,7 @@ export default function Activos() {
   const [estadoModalAbierto, setEstadoModalAbierto] = useState(false);
   const [activoUnidadSeleccionado, setActivoUnidadSeleccionado] = useState(null);
   const [modalActivo, setModalActivo] = useState(false);
+  
 
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -521,7 +522,27 @@ export default function Activos() {
           setUnidadIdReasignacion(null);
           setModalActivo(false); // Muestra la paginación
         }}
-        style={modalStyles}
+        style={{
+          content: {
+            top: "50%",
+            left: "50%",
+            right: "auto",
+            bottom: "auto",
+            marginRight: "-50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "rgba(0, 0, 0, 0)",
+            borderRadius: "15px",
+            padding: "1px",
+            width: "40%", 
+            maxWidth: "900px",
+            overflow: "auto",
+            maxHeight: "90vh",
+          },
+          overlay: {
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1000
+          }
+        }}
         contentLabel="Modal de Reasignación de Activos"
       >
         <ReasignarActivos

@@ -76,6 +76,7 @@ export default function AsignarActivos({ onClose, onAssignmentComplete }) {
   };
 
   const handleSelectActivos = (modeloId, unidades) => {
+  
     setSelectedActivos(prevSelectedActivos => ({
       ...prevSelectedActivos,
       [modeloId]: unidades
@@ -84,13 +85,34 @@ export default function AsignarActivos({ onClose, onAssignmentComplete }) {
 
   const handleGeneratePDF = () => {
     const selectedActivosList = Object.values(selectedActivos).flat();
+    
     if (selectedActivosList.length === 0) {
       message.error('Por favor seleccione al menos un activo');
       return;
     }
+  
+    // Mapea los activos seleccionados al formato que necesita el PDF
+    const activosParaPDF = selectedActivosList.map(activo => {
+      const [codigo, estadoActual] = activo.label.split(' - '); // Divide el label en código y estadoActual
+  
+      // Encuentra el modelo completo en la lista de activos para obtener descripción y fechaIngreso
+      const modelo = activos.find(m => m.activoUnidades.some(u => u.id === activo.value));
+      const unidad = modelo?.activoUnidades.find(u => u.id === activo.value);
+  
+      return {
+        codigo: unidad?.codigo || codigo,
+        estadoActual: unidad?.estadoActual || estadoActual,
+        descripcion: modelo?.descripcion || 'Descripción no disponible',
+        fechaIngreso: modelo?.fechaIngreso || 'Fecha no disponible',
+      };
+    });
+  
     setShowPDF(true);
     setCurrentStep(3);
+  
+    // Al pasar los datos al PDF, ahora estarán en el formato adecuado
   };
+  
 
   const handleAvalFileChange = (event) => {
     const file = event.target.files[0];
@@ -295,19 +317,36 @@ export default function AsignarActivos({ onClose, onAssignmentComplete }) {
           <div className="space-y-4">
             <h3 className="text-xl font-semibold text-emi_azul mb-4">Paso 3: Revisar y Subir Aval</h3>
             {showPDF && (
-              <div className="w-full h-64 border border-gray-300 rounded-lg overflow-hidden">
-                <PDFViewer width="100%" height="100%">
-                  <CustodyDocument 
-                    data={{
-                      nombre: selectedPerson?.nombre || '',
-                      cargo: selectedPerson?.cargo?.nombre || '',
-                      unidad: selectedPerson?.unidad?.nombre || ''
-                    }}
-                    activos={Object.values(selectedActivos).flat()}
-                  />
-                </PDFViewer>
-              </div>
-            )}
+  <div className="w-full h-64 border border-gray-300 rounded-lg overflow-hidden">
+    <PDFViewer width="100%" height="100%">
+      <CustodyDocument 
+        data={{
+          nombre: selectedPerson?.nombre || '',
+          cargo: selectedPerson?.cargo?.nombre || '',
+          unidad: selectedPerson?.unidad?.nombre || ''
+        }}
+        activos={
+          Object.values(selectedActivos)
+            .flat()
+            .map(activo => {
+              const [codigo, estadoActual] = activo.label.split(' - '); // Divide el label en código y estadoActual
+              
+              // Encuentra el modelo completo en la lista de activos
+              const modelo = activos.find(m => m.activoUnidades.some(u => u.id === activo.value));
+              const unidad = modelo?.activoUnidades.find(u => u.id === activo.value);
+              return {
+                codigo: unidad?.codigo || codigo,
+                estadoActual: unidad?.estadoActual || estadoActual,
+                descripcion: modelo?.descripcion || 'Descripción no disponible',
+                fechaIngreso: modelo?.fechaIngreso || 'Fecha no disponible',
+              };
+            })
+        }
+      />
+    </PDFViewer>
+  </div>
+)}
+
             <div>
               <label className="block text-sm font-medium text-emi_azul mb-2">
                 Subir Aval de Asignación (PDF o Imagen)
