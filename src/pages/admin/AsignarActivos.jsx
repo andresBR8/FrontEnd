@@ -30,7 +30,7 @@ export default function AsignarActivos({ onClose, onAssignmentComplete }) {
   const fetchPersonal = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${apiUrl}/personal/all`);
+      const response = await axios.get(`${apiUrl}/personal/activos`);
       setPersonal(response.data.data);
       setFilteredPersonal(response.data.data);
     } catch (error) {

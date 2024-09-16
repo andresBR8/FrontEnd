@@ -36,7 +36,7 @@ export default function ReasignarActivos({ onClose, onReasignmentComplete, activ
     setIsLoading(true);
     setLoadingMessage('Cargando lista de personal...');
     try {
-      const response = await axios.get(`${apiUrl}/personal/all`);
+      const response = await axios.get(`${apiUrl}/personal/activos`);
       setPersonal(response.data.data);
       setFilteredPersonal(response.data.data);
     } catch (error) {

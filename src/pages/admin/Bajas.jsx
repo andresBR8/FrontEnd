@@ -409,11 +409,11 @@ const Bajas = () => {
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-emi_amarillo uppercase bg-emi_azul">
                 <tr>
-                  <th className="px-6 py-3">ID</th>
-                  <th className="px-6 py-3">Fecha</th>
-                  <th className="px-6 py-3">Unidad</th>
-                  <th className="px-6 py-3">Motivo</th>
-                  <th className="px-6 py-3">Estado</th>
+                  <th className="px-6 py-2">ID</th>
+                  <th className="px-6 py-2">Fecha</th>
+                  <th className="px-6 py-2">Unidad</th>
+                  <th className="px-6 py-2">Motivo</th>
+                  <th className="px-6 py-2">Estado</th>
                   {isAdmin && <th className="px-6 py-3">Acciones</th>}
                 </tr>
               </thead>
@@ -423,11 +423,11 @@ const Bajas = () => {
                 ) : (
                   currentBajas.map((baja) => (
                     <tr key={baja.id} className="bg-white border-b hover:bg-gray-50 text-emi_azul">
-                      <td className="px-6 py-4">{baja.id}</td>
-                      <td className="px-6 py-4">{new Date(baja.fecha).toLocaleDateString()}</td>
-                      <td className="px-6 py-4">{baja.activoUnidad.codigo}</td>
-                      <td className="px-6 py-4">{baja.motivo}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-2">{baja.id}</td>
+                      <td className="px-6 py-2">{new Date(baja.fecha).toLocaleDateString()}</td>
+                      <td className="px-6 py-2">{baja.activoUnidad.codigo}</td>
+                      <td className="px-6 py-2">{baja.motivo}</td>
+                      <td className="px-6 py-2">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           baja.estado === "APROBADA" ? "bg-green-100 text-green-800" :
                           baja.estado === "RECHAZADA" ? "bg-red-100 text-red-800" :
@@ -437,7 +437,7 @@ const Bajas = () => {
                         </span>
                       </td>
                       {isAdmin && baja.estado === "PENDIENTE" && (
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-2">
                           <button
                             onClick={() => handleAprobarBaja(baja.id, true)}
                             className="text-green-600 hover:text-green-900 mr-2"
