@@ -167,19 +167,34 @@ const RegisterActivos = ({ onClose, onSave }) => {
       toast.error('No hay activos para registrar.');
       return;
     }
-
-    setIsSaving(true); 
-    console.log(activosList); 
+  
+    setIsSaving(true);
     try {
-      await axios.post(`${apiUrl}/activo-modelo`, activosList);
-      message.success('Activos registrados exitosamente');
-      onSave();
-      onClose();
+      const response = await axios.post(`${apiUrl}/activo-modelo`, activosList);
+      
+      if (response.status === 200 || response.status === 201) {
+        toast.success('Activos registrados exitosamente');
+        setTimeout(() => {
+          onClose();
+        }, 2000); // Cierra el modal después de 2 segundos
+      } else {
+        throw new Error('Respuesta del servidor no exitosa');
+      }
     } catch (error) {
       console.error('Error al registrar los activos:', error);
-      toast.error('Ocurrió un error al registrar los activos.');
+      
+      if (error.response) {
+        // El servidor respondió con un estado fuera del rango de 2xx
+        toast.error(`Error del servidor: ${error.response.data.message || 'Ocurrió un error desconocido'}`);
+      } else if (error.request) {
+        // La solicitud fue hecha pero no se recibió respuesta
+        toast.error('No se recibió respuesta del servidor. Por favor, verifica tu conexión.');
+      } else {
+        // Algo sucedió en la configuración de la solicitud que provocó un error
+        toast.error('Error al preparar la solicitud. Por favor, intente de nuevo.');
+      }
     } finally {
-      setIsSaving(false);  // Desactivar estado de guardado
+      setIsSaving(false);
     }
   };
 

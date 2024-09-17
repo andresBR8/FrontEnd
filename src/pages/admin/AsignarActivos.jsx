@@ -22,10 +22,12 @@ export default function AsignarActivos({ onClose, onAssignmentComplete }) {
   const [isAssigning, setIsAssigning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [assetSearchTerm, setAssetSearchTerm] = useState('');
+  
 
   useEffect(() => {
     fetchPersonal();
   }, []);
+
 
   const fetchPersonal = async () => {
     setIsLoading(true);

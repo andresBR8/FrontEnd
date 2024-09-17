@@ -154,9 +154,9 @@ const Dashboard = () => {
         {renderKPICard("Bajas Pendientes", dashboardData.kpis?.pendingDisposals)}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-6">
         {renderChart("Distribución de Activos por Categoría", (
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={dashboardData.assetDistribution}
@@ -177,8 +177,10 @@ const Dashboard = () => {
             </PieChart>
           </ResponsiveContainer>
         ))}
+      </div>
 
-        {renderChart("Estado de los Activos", (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {renderChart("Estado de los Activos", (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={dashboardData.assetStatus}>
               <XAxis dataKey="condition" />
@@ -186,20 +188,6 @@ const Dashboard = () => {
               <Tooltip />
               <Legend />
               <Bar dataKey="count" fill="#4299E1" />
-            </BarChart>
-          </ResponsiveContainer>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {renderChart("Activos por Unidad", (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={dashboardData.assetsByUnit}>
-              <XAxis dataKey="unit" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#48BB78" />
             </BarChart>
           </ResponsiveContainer>
         ))}

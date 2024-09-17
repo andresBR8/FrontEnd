@@ -22,6 +22,8 @@ import QrScanner from "react-qr-scanner";
 import ReactPaginate from "react-paginate";
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -93,9 +95,11 @@ export default function Activos() {
   const handleActivoModeloChanged = useCallback((data) => {
     if (!data || !data.action) return;
 
+
     const updateActivos = (prevActivos) => {
       switch (data.action) {
         case 'created':
+          generatePDFWithQR(data.activoModelo);
           return [...prevActivos, data.activoModelo];
         case 'updated':
         case 'change-estado':
@@ -116,6 +120,51 @@ export default function Activos() {
         default:
           return prevActivos;
       }
+    };
+    const generatePDFWithQR = async (activoModelo) => {
+      const pdf = new jsPDF();
+      let yOffset = 10;
+    
+      pdf.setFontSize(18);
+      pdf.text(`Activo Modelo: ${activoModelo.nombre}`, 10, yOffset);
+      yOffset += 10;
+    
+      pdf.setFontSize(12);
+      pdf.text(`ID: ${activoModelo.id}`, 10, yOffset);
+      yOffset += 7;
+      pdf.text(`Descripción: ${activoModelo.descripcion}`, 10, yOffset);
+      yOffset += 7;
+      pdf.text(`Fecha de Ingreso: ${new Date(activoModelo.fechaIngreso).toLocaleDateString()}`, 10, yOffset);
+      yOffset += 7;
+      pdf.text(`Costo: ${activoModelo.costo} Bs`, 10, yOffset);
+      yOffset += 7;
+      pdf.text(`Estado: ${activoModelo.estado}`, 10, yOffset);
+      yOffset += 15;
+    
+      pdf.setFontSize(14);
+      pdf.text("Unidades:", 10, yOffset);
+      yOffset += 10;
+    
+      for (const unidad of activoModelo.activoUnidades) {
+        const qrContent = `Activo ID: ${unidad.id}\nNombre: ${activoModelo.nombre}\nDescripción: ${activoModelo.descripcion}\nCódigo: ${unidad.codigo}`;
+    
+        const qrCodeDataUrl = await QRCode.toDataURL(qrContent);
+    
+        pdf.addImage(qrCodeDataUrl, 'PNG', 10, yOffset, 30, 30);
+        pdf.setFontSize(12);
+        pdf.text(`Código: ${unidad.codigo}`, 45, yOffset + 10);
+        pdf.text(`Estado: ${unidad.estadoActual}`, 45, yOffset + 17);
+        pdf.text(`Condición: ${unidad.estadoCondicion}`, 45, yOffset + 24);
+    
+        yOffset += 40;
+    
+        if (yOffset > 270) {
+          pdf.addPage();
+          yOffset = 10;
+        }
+      }
+    
+      pdf.save(`activo_modelo_${activoModelo.id}.pdf`);
     };
 
     const updateUnidades = (prevUnidades) => {
@@ -286,7 +335,7 @@ export default function Activos() {
     if (asignado) {
       setUnidadIdReasignacion(id);
     } else {
-      navigate(`/asignar-activo/${id}`);
+      navigate(`/gestionaractivos`);
     }
     setModalActivo(true);
   }, [navigate]);
@@ -487,7 +536,6 @@ export default function Activos() {
           onClose={() => { 
             setModalAbierto(false);
             setModalActivo(false); // Muestra la paginación
-            obtenerActivos(); 
           }}
         />
       </Modal>
@@ -550,7 +598,6 @@ export default function Activos() {
           onClose={() => {
             setUnidadIdReasignacion(null);
             setModalActivo(false); // Muestra la paginación
-            obtenerActivos();
           }}
         />
       </Modal>

@@ -56,7 +56,6 @@ export default function ReasignarActivos({ onClose, onReasignmentComplete, activ
       setUltimaAsignacion(response.data.data);
     } catch (error) {
       console.error('Error fetching ultima asignacion:', error);
-      message.error('No se pudo obtener la información de la última asignación.');
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -127,14 +126,14 @@ export default function ReasignarActivos({ onClose, onReasignmentComplete, activ
 
   const handleReasignarActivo = async () => {
     if (!selectedPerson || !actaDevolucionUrl || !avalReasignacionUrl) {
-      message.error('Por favor complete todos los pasos antes de reasignar');
+      toast.error('Por favor complete todos los pasos antes de reasignar');
       return;
     }
-
+  
     setIsReasigning(true);
     setIsLoading(true);
     setLoadingMessage('Procesando reasignación...');
-
+  
     try {
       // Primero, realizar la devolución
       const devolucionData = {
@@ -145,33 +144,54 @@ export default function ReasignarActivos({ onClose, onReasignmentComplete, activ
         actaDevolucion: actaDevolucionUrl,
         activosUnidades: [{ fkActivoUnidad: activoUnidadId }],
       };
-
-      await axios.post(`${apiUrl}/devolucion`, devolucionData);
-
-      // Luego, realizar la reasignación
-      const reasignacionData = {
-        fkActivoUnidad: activoUnidadId,
-        fkUsuarioAnterior: ultimaAsignacion.usuario.id,
-        fkUsuarioNuevo: localStorage.getItem('id'),
-        fkPersonalAnterior: ultimaAsignacion.personal.id,
-        fkPersonalNuevo: selectedPerson.id,
-        detalle: detalle || 'Reasignación de activo',
-        fechaReasignacion: new Date().toISOString(),
-        avalReasignacion: avalReasignacionUrl,
-      };
-
-      await axios.post(`${apiUrl}/reasignacion`, reasignacionData);
-
-      message.success('Reasignación completada exitosamente.');
-      onReasignmentComplete();
-      onClose();
+  
+      const devolucionResponse = await axios.post(`${apiUrl}/devolucion`, devolucionData);
+  
+      if (devolucionResponse.status === 200 || devolucionResponse.status === 201) {
+        // La devolución fue exitosa, procedemos con la reasignación
+        const reasignacionData = {
+          fkActivoUnidad: activoUnidadId,
+          fkUsuarioAnterior: ultimaAsignacion.usuario.id,
+          fkUsuarioNuevo: localStorage.getItem('id'),
+          fkPersonalAnterior: ultimaAsignacion.personal.id,
+          fkPersonalNuevo: selectedPerson.id,
+          detalle: detalle || 'Reasignación de activo',
+          fechaReasignacion: new Date().toISOString(),
+          avalReasignacion: avalReasignacionUrl,
+        };
+  
+        const reasignacionResponse = await axios.post(`${apiUrl}/reasignacion`, reasignacionData);
+  
+        if (reasignacionResponse.status === 200 || reasignacionResponse.status === 201) {
+          message.success('Reasignación completada exitosamente');
+          setTimeout(() => {
+            onReasignmentComplete();
+            onClose();
+          }, 2000); // Cierra el modal después de 2 segundos
+        } else {
+          throw new Error('Respuesta del servidor no exitosa en la reasignación');
+        }
+      } else {
+        throw new Error('Respuesta del servidor no exitosa en la devolución');
+      }
     } catch (error) {
       console.error('Error al realizar la reasignación:', error);
-      message.error('Hubo un problema al realizar la reasignación.');
+      
+      if (error.response) {
+        // El servidor respondió con un estado fuera del rango de 2xx
+        message.error(`Error del servidor: ${error.response.data.message || 'Ocurrió un error desconocido'}`);
+      } else if (error.request) {
+        // La solicitud fue hecha pero no se recibió respuesta
+        message.error('No se recibió respuesta del servidor. Por favor, verifica tu conexión.');
+      } else {
+        // Algo sucedió en la configuración de la solicitud que provocó un error
+        message.error('Error al preparar la solicitud. Por favor, intente de nuevo.');
+      }
     } finally {
       setIsReasigning(false);
       setIsLoading(false);
       setLoadingMessage('');
+      onClose();
     }
   };
 
@@ -206,8 +226,8 @@ export default function ReasignarActivos({ onClose, onReasignmentComplete, activ
               <PDFViewer width="100%" height="500px">
                 <DevolucionDocument data={{
                   nombre: ultimaAsignacion.personal.nombre,
-                  cargo: ultimaAsignacion.personal.cargo.nombre,
-                  unidad: ultimaAsignacion.personal.unidad.nombre,
+                  cargo: ultimaAsignacion.personal.cargo,
+                  unidad: ultimaAsignacion.personal.unidad,
                   activos: [{
                     codigo: ultimaAsignacion.activoUnidad.codigo,
                     nombre: ultimaAsignacion.activoUnidad.descripcion,

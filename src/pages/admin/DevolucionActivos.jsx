@@ -9,6 +9,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { PDFViewer } from '@react-pdf/renderer';
 import DevolucionDocument from './DevolucionDocument';
+import ReactECharts from 'echarts-for-react';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -141,21 +142,68 @@ function DevolucionActivos() {
   };
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Reporte de Devoluciones", 20, 10);
-    const tableColumn = ["ID", "Fecha", "Personal", "Unidad", "Código Activo", "Estado", "Detalle"];
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Add logo
+    const logoUrl = 'https://i.ibb.co/QdCDD3j/ead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo-emi.jpg';
+    doc.addImage(logoUrl, 'PNG', 10, 10, 30, 30);
+
+    // Set font styles
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(5, 68, 115); // emi_azul color
+
+    // Add title
+    doc.text("ACTA DE DEVOLUCIÓN DE ACTIVOS", doc.internal.pageSize.width / 2, 50, { align: "center" });
+
+    // Reset font for normal text
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+
+    // Add current date
+    const currentDate = moment().format('DD [de] MMMM [de] YYYY');
+    doc.text(`Fecha: ${currentDate}`, 20, 60);
+
+    // Add content
+    doc.text("Por medio de la presente se deja constancia de la devolución de los siguientes activos:", 20, 70);
+
+    // Create table for assets
+    const tableColumn = ["Código", "Nombre", "Estado", "Costo Actual"];
     const tableRows = filteredDevoluciones.map(devolucion => [
-      devolucion.id,
-      moment(devolucion.fecha).format('DD/M/YYYY'),
-      devolucion.personal.nombre,
-      devolucion.personal.unidad.nombre,
       devolucion.activoUnidad.codigo,
+      devolucion.activoUnidad.nombre,
       devolucion.activoUnidad.estadoCondicion,
-      devolucion.detalle
+      `$${devolucion.activoUnidad.costoActual.toFixed(2)}`
     ]);
 
-    doc.autoTable(tableColumn, tableRows, { startY: 20 });
-    doc.save("reporte_devoluciones.pdf");
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 80,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [5, 68, 115], textColor: [249, 185, 4] },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+    });
+
+    // Add signature lines
+    const finalY = doc.lastAutoTable.finalY || 80;
+    doc.line(20, finalY + 40, 90, finalY + 40); // Entrega line
+    doc.line(120, finalY + 40, 190, finalY + 40); // Recibe line
+
+    doc.text("Entrega", 55, finalY + 45);
+    doc.text("Recibe", 155, finalY + 45);
+
+    // Add footer
+    doc.setFontSize(10);
+    doc.text("Este documento es un comprobante de la devolución de activos. Por favor, consérvelo para futuros registros.", 20, doc.internal.pageSize.height - 20);
+
+    // Save the PDF
+    doc.save("acta_devolucion_activos.pdf");
   };
 
   const columns = [
@@ -163,43 +211,56 @@ function DevolucionActivos() {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
+      className: 'text-emi_azul',
     },
     {
       title: 'Fecha',
       dataIndex: 'fecha',
       key: 'fecha',
+      className: 'text-emi_azul',
       render: (text) => moment(text).format('DD/M/YYYY'),
     },
     {
       title: 'Personal',
       dataIndex: ['personal', 'nombre'],
       key: 'personal',
+      className: 'text-emi_azul',
     },
     {
       title: 'Unidad',
       dataIndex: ['personal', 'unidad', 'nombre'],
       key: 'unidad',
+      className: 'text-emi_azul',
     },
     {
       title: 'Código Activo',
       dataIndex: ['activoUnidad', 'codigo'],
       key: 'codigoActivo',
+      className: 'text-emi_azul',
     },
     {
       title: 'Estado Condición',
       dataIndex: ['activoUnidad', 'estadoCondicion'],
       key: 'estadoCondicion',
+      className: 'text-emi_azul',
     },
     {
       title: 'Detalle',
       dataIndex: 'detalle',
       key: 'detalle',
+      className: 'text-emi_azul',
     },
     {
       title: 'Acta de Devolución',
       key: 'actaDevolucion',
+      className: 'text-emi_azul',
       render: (text, record) => (
-        <a href={record.actaDevolucion} target="_blank" rel="noopener noreferrer">
+        <a 
+          href={record.actaDevolucion} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-emi_amarillo hover:text-white"
+        >
           Descargar
         </a>
       ),
@@ -468,6 +529,112 @@ function DevolucionActivos() {
     }
   };
 
+  // ECharts options for Devoluciones por Unidad
+  const devolucionesPorUnidadOptions = {
+    title: {
+      text: 'Devoluciones por Unidad',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+    },
+    series: [
+      {
+        name: 'Devoluciones',
+        type: 'pie',
+        radius: ['50%', '70%'],
+        avoidLabelOverlap: false,
+        label: {
+          show: false,
+          position: 'center'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: '20',
+            fontWeight: 'bold'
+          }
+        },
+        labelLine: {
+          show: false
+        },
+        data: unidades.map(unidad => ({
+          name: unidad,
+          value: filteredDevoluciones.filter(d => d.personal.unidad.nombre === unidad).length
+        }))
+      }
+    ]
+  };
+
+  // ECharts options for Devoluciones por Estado
+  const devolucionesPorEstadoOptions = {
+    title: {
+      text: 'Devoluciones por Estado',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    xAxis: {
+      type: 'category',
+      data: ['DISPONIBLE', 'BAJA', 'REASIGNADO']
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: 'Cantidad',
+        type: 'bar',
+        data: ['DISPONIBLE', 'BAJA', 'REASIGNADO'].map(estado => 
+          filteredDevoluciones.filter(d => d.activoUnidad.estadoCondicion === estado).length
+        ),
+        itemStyle: {
+          color: function(params) {
+            const colors = ['#5470c6', '#91cc75', '#fac858'];
+            return colors[params.dataIndex];
+          }
+        }
+      }
+    ]
+  };
+
+  // ECharts options for Devoluciones por Mes
+  const devolucionesPorMesOptions = {
+    title: {
+      text: 'Devoluciones por Mes',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis'
+    },
+    xAxis: {
+      type: 'category',
+      data: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: 'Devoluciones',
+        type: 'line',
+        data: Array(12).fill(0).map((_, index) => 
+          filteredDevoluciones.filter(d => moment(d.fecha).month() === index).length
+        ),
+        smooth: true
+      }
+    ]
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4 text-emi_azul">Registro de Devoluciones</h1>
@@ -557,6 +724,18 @@ function DevolucionActivos() {
             showQuickJumper: true,
           }}
         />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <ReactECharts option={devolucionesPorUnidadOptions} style={{ height: '300px' }} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <ReactECharts option={devolucionesPorEstadoOptions} style={{ height: '300px' }} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <ReactECharts option={devolucionesPorMesOptions} style={{ height: '300px' }} />
+        </div>
       </div>
 
       <Modal

@@ -2,20 +2,17 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Modal from "react-modal";
 import Swal from "sweetalert2";
 import { RiEdit2Line, RiDeleteBin6Line, RiArrowDownSLine, RiArrowUpSLine, RiAddLine, RiSearchLine, RiLoader4Line, RiFileDownloadLine, RiFilterLine, RiRefreshLine } from "react-icons/ri";
-import { Bar, Pie } from "react-chartjs-2";
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import axios from 'axios';
 import ReactPaginate from "react-paginate";
 import AsignarActivos from './AsignarActivos';
 import { DatePicker, Select, Input, Button, Space, Skeleton } from 'antd';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import ReactECharts from 'echarts-for-react';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -36,8 +33,13 @@ export default function AssetManagement() {
     try {
       setLoading(true);
       const response = await axios.get(`${apiUrl}/asignacion`);
-      setAssignments(response.data.data);
-      setFilteredAssignments(response.data.data);
+      const processedAssignments = response.data.data.map(assignment => ({
+        ...assignment,
+        fechaAsignacionFormatted: moment(assignment.fechaAsignacion).tz('America/La_Paz').format('DD/MM/YYYY HH:mm'),
+        fechaAsignacionMoment: moment(assignment.fechaAsignacion).tz('America/La_Paz')
+      }));
+      setAssignments(processedAssignments);
+      setFilteredAssignments(processedAssignments);
     } catch (error) {
       console.error('Error fetching data:', error);
       Swal.fire('Error', 'No se pudieron cargar las asignaciones.', 'error');
@@ -78,9 +80,15 @@ export default function AssetManagement() {
     applyFilters(e.target.value.toLowerCase(), dateRange, selectedUnit, selectedRole);
   };
 
-  const handleDateRangeChange = (dates) => {
-    setDateRange(dates);
-    applyFilters(searchTerm, dates, selectedUnit, selectedRole);
+  const handleDateRangeChange = (dates, dateStrings) => {
+    if (dates) {
+      const [start, end] = dates;
+      setDateRange([start, end]);
+      applyFilters(searchTerm, [start, end], selectedUnit, selectedRole);
+    } else {
+      setDateRange(null);
+      applyFilters(searchTerm, null, selectedUnit, selectedRole);
+    }
   };
 
   const handleUnitChange = (value) => {
@@ -105,12 +113,11 @@ export default function AssetManagement() {
       );
     }
 
-    if (dates && dates[0] && dates[1]) {
-      const startDate = dates[0].startOf('day');
-      const endDate = dates[1].endOf('day');
-      filtered = filtered.filter(assignment => 
-        moment(assignment.fechaAsignacion).isBetween(startDate, endDate, null, '[]')
-      );
+    if (dates && dates.length === 2) {
+      const [startDate, endDate] = dates;
+      filtered = filtered.filter(assignment => {
+        return assignment.fechaAsignacionMoment.isBetween(startDate, endDate, 'day', '[]');
+      });
     }
 
     if (unit !== "TODAS") {
@@ -144,43 +151,6 @@ export default function AssetManagement() {
     setCurrentPage(selected);
   };
 
-  const pieChartData = {
-    labels: [...new Set(assignments.map(assignment => assignment.personal.unidad?.nombre))].filter(Boolean),
-    datasets: [{
-      label: 'Asignaciones por Unidad',
-      data: [...new Set(assignments.map(assignment => assignment.personal.unidad?.nombre))].filter(Boolean).map(unidad => (
-        assignments.filter(assignment => assignment.personal.unidad?.nombre === unidad).length
-      )),
-      backgroundColor: [
-        'rgba(54, 162, 235, 0.6)',
-        'rgba(255, 99, 132, 0.6)',
-        'rgba(255, 206, 86, 0.6)',
-        'rgba(75, 192, 192, 0.6)',
-        'rgba(153, 102, 255, 0.6)',
-        'rgba(255, 159, 64, 0.6)',
-        'rgba(199, 199, 199, 0.6)'
-      ],
-      borderColor: 'rgba(5, 68, 115, 1)',
-      borderWidth: 1
-    }]
-  };
-
-  const pieChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      tooltip: {
-        callbacks: {
-          label: function(tooltipItem) {
-            return `${tooltipItem.label}: ${tooltipItem.raw}`;
-          }
-        }
-      }
-    }
-  };
-
   const obtenerRolUsuario = (role) => {
     switch (role) {
       case 'Administrador':
@@ -189,29 +159,6 @@ export default function AssetManagement() {
         return 'Encargado';
       default:
         return 'Desconocido';
-    }
-  };
-
-  const horizontalBarChartData = {
-    labels: ['Administrador', 'Encargado'],
-    datasets: [{
-      label: 'Activos Asignados por Usuario',
-      data: ['Administrador', 'Encargado'].map(rol => (
-        assignments.filter(assignment => obtenerRolUsuario(assignment.usuario.role) === rol).length
-      )),
-      backgroundColor: 'rgba(5, 68, 115, 1)',
-      borderColor: 'rgba(249, 185, 4, 1)',
-      borderWidth: 1
-    }]
-  };
-
-  const horizontalBarChartOptions = {
-    indexAxis: 'y',
-    responsive: true,
-    scales: {
-      x: {
-        beginAtZero: true
-      }
     }
   };
 
@@ -233,8 +180,23 @@ export default function AssetManagement() {
   );
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Reporte de Asignaciones de Activos", 14, 15);
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Add logo
+    const logoUrl = 'https://i.ibb.co/QdCDD3j/ead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo-emi.jpg';
+    doc.addImage(logoUrl, 'PNG', 10, 10, 30, 30);
+
+    doc.setFontSize(18);
+    doc.setTextColor(5, 68, 115); // emi_azul color
+    doc.text("Reporte de Asignaciones de Activos", 50, 25);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Fecha de generación: ${moment().format('DD/MM/YYYY HH:mm')}`, 50, 35);
     
     const tableColumn = ["ID", "Usuario", "Rol", "Personal", "Unidad", "Fecha de Asignación", "Detalle"];
     const tableRows = filteredAssignments.map(assignment => [
@@ -243,11 +205,29 @@ export default function AssetManagement() {
       obtenerRolUsuario(assignment.usuario.role),
       assignment.personal.nombre,
       assignment.personal.unidad?.nombre || 'N/A',
-      new Date(assignment.fechaAsignacion).toLocaleString(),
+      assignment.fechaAsignacionFormatted,
       assignment.detalle
     ]);
 
-    doc.autoTable(tableColumn, tableRows, { startY: 20 });
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 45,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [5, 68, 115], textColor: [249, 185, 4] },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+    });
+
+    // Add summary
+    const finalY = doc.lastAutoTable.finalY || 45;
+    doc.setFontSize(10);
+    doc.text(`Total de asignaciones: ${filteredAssignments.length}`, 14, finalY + 10);
+    doc.text(`Filtros aplicados:`, 14, finalY + 20);
+    doc.text(`- Búsqueda: ${searchTerm || 'Ninguna'}`, 20, finalY + 30);
+    doc.text(`- Rango de fechas: ${dateRange ? `${moment(dateRange[0]).format('DD/MM/YYYY')} - ${moment(dateRange[1]).format('DD/MM/YYYY')}` : 'Ninguno'}`, 20, finalY + 40);
+    doc.text(`- Unidad: ${selectedUnit}`, 20, finalY + 50);
+    doc.text(`- Rol de usuario: ${selectedRole}`, 20, finalY + 60);
+
     doc.save("reporte_asignaciones.pdf");
   };
 
@@ -264,6 +244,114 @@ export default function AssetManagement() {
       <td className="py-4 px-6"><Skeleton.Button active size="small" /></td>
     </tr>
   );
+
+  // ECharts options for Asignaciones por Unidad
+  const asignacionesPorUnidadOptions = {
+    title: {
+      text: 'Asignaciones por Unidad',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+    },
+    series: [
+      {
+        name: 'Asignaciones',
+        type: 'pie',
+        radius: ['50%', '70%'],
+        avoidLabelOverlap: false,
+        label: {
+          show: false,
+          position: 'center'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: '20',
+            fontWeight: 'bold'
+          }
+        },
+        labelLine: {
+          show: false
+        },
+        data: [...new Set(assignments.map(a => a.personal.unidad?.nombre))]
+          .filter(Boolean)
+          .map(unidad => ({
+            name: unidad,
+            value: assignments.filter(a => a.personal.unidad?.nombre === unidad).length
+          }))
+      }
+    ]
+  };
+
+  // ECharts options for Asignaciones por Rol de Usuario
+  const asignacionesPorRolOptions = {
+    title: {
+      text: 'Asignaciones por Rol de Usuario',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    xAxis: {
+      type: 'category',
+      data: ['Administrador', 'Encargado']
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: 'Asignaciones',
+        type: 'bar',
+        data: ['Administrador', 'Encargado'].map(rol => 
+          assignments.filter(a => obtenerRolUsuario(a.usuario.role) === rol).length
+        ),
+        itemStyle: {
+          color: function(params) {
+            const colors = ['#5470c6', '#91cc75'];
+            return colors[params.dataIndex];
+          }
+        }
+      }
+    ]
+  };
+
+  // ECharts options for Asignaciones por Mes
+  const asignacionesPorMesOptions = {
+    title: {
+      text: 'Asignaciones por Mes',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis'
+    },
+    xAxis: {
+      type: 'category',
+      data: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: 'Asignaciones',
+        type: 'line',
+        data: Array(12).fill(0).map((_, index) => 
+          assignments.filter(a => moment(a.fechaAsignacion).month() === index).length
+        ),
+        smooth: true
+      }
+    ]
+  };
 
   return (
     <div className="p-4 bg-gray-100 min-h-screen">
@@ -298,6 +386,10 @@ export default function AssetManagement() {
               <RangePicker 
                 onChange={handleDateRangeChange}
                 value={dateRange}
+                format="DD/MM/YYYY"
+                placeholder={['Fecha inicial', 'Fecha final']}
+                allowClear={true}
+                disabledDate={(current) => current && current > moment().endOf('day')}
               />
             </div>
             <div>
@@ -334,7 +426,7 @@ export default function AssetManagement() {
               Limpiar Filtros
             </Button>
             <Button 
-              type="primary" 
+              className="text-emi_amarillo bg-emi_azul"
               icon={<RiFileDownloadLine />} 
               onClick={exportToPDF}
             >
@@ -378,7 +470,7 @@ export default function AssetManagement() {
                         <td className="py-4 px-6">{assignment.personal.nombre}</td>
                         <td className="py-4 px-6">{assignment.detalle}</td>
                         <td className="py-4 px-6">{assignment.personal.unidad?.nombre || 'N/A'}</td>
-                        <td className="py-4 px-6">{new Date(assignment.fechaAsignacion).toLocaleString()}</td>
+                        <td className="py-4 px-6">{assignment.fechaAsignacionFormatted}</td>
                         <td className="py-4 px-6">
                           <button 
                             onClick={() => handleAvalClick(assignment.avalAsignacion)}
@@ -433,7 +525,7 @@ export default function AssetManagement() {
                   <p><span className="font-medium">Rol:</span> {obtenerRolUsuario(assignment.usuario.role)}</p>
                   <p><span className="font-medium">Detalle:</span> {assignment.detalle}</p>
                   <p><span className="font-medium">Unidad:</span> {assignment.personal.unidad?.nombre || 'N/A'}</p>
-                  <p><span className="font-medium">Fecha:</span> {new Date(assignment.fechaAsignacion).toLocaleString()}</p>
+                  <p><span className="font-medium">Fecha:</span> {assignment.fechaAsignacionFormatted}</p>
                 </div>
                 <div className="mt-2">
                   <button 
@@ -479,14 +571,15 @@ export default function AssetManagement() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl text-emi_azul font-bold mb-4">Asignaciones por Unidad</h2>
-            {pieChartData && <Pie data={pieChartData} options={pieChartOptions} />}
+            <ReactECharts option={asignacionesPorUnidadOptions} style={{ height: '400px' }} />
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl text-emi_azul font-bold mb-4">Activos Asignados por Usuario</h2>
-            {horizontalBarChartData && <Bar data={horizontalBarChartData} options={horizontalBarChartOptions} />}
+            <ReactECharts option={asignacionesPorRolOptions} style={{ height: '400px' }} />
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <ReactECharts option={asignacionesPorMesOptions} style={{ height: '400px' }} />
           </div>
         </div>
 
