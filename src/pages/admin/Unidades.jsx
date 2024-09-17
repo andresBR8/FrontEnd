@@ -61,7 +61,7 @@ export default function Personal() {
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadStatus(`Cargando archivo: ${percentCompleted}%`);
+          setUploadStatus(`Procesando Archivo ....`);
         },
       });
 

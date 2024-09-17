@@ -148,9 +148,9 @@ const Dashboard = () => {
       </header>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {renderKPICard("Total de Activos", dashboardData.kpis?.totalAssets, dashboardData.kpis?.monthlyGrowth.assets)}
-        {renderKPICard("Valor Total", formatCurrency(dashboardData.kpis?.totalValue), dashboardData.kpis?.monthlyGrowth.value)}
-        {renderKPICard("Activos Asignados", `${dashboardData.kpis?.assignedAssets} (${dashboardData.kpis?.assignedPercentage.toFixed(2)}%)`, dashboardData.kpis?.monthlyGrowth.assigned)}
+        {renderKPICard("Total de Activos", dashboardData.kpis?.totalAssets)}
+        {renderKPICard("Valor Total", formatCurrency(dashboardData.kpis?.totalValue))}
+        {renderKPICard("Activos Asignados", `${dashboardData.kpis?.assignedAssets} (${dashboardData.kpis?.assignedPercentage.toFixed(2)}%)`)}
         {renderKPICard("Bajas Pendientes", dashboardData.kpis?.pendingDisposals)}
       </div>
 
