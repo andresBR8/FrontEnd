@@ -139,7 +139,7 @@ const Header = () => {
   return (
     <header className="h-[7vh] md:h-[10vh] border-b border-secondary-100 p-8 flex items-center justify-end">
       <nav className="flex items-center gap-2">
-        {rol === 'Administrador' && (
+        {rol === 'Nan' && (
           <button onClick={handleBackup} className="flex items-center relative hover:bg-secondary-100 p-2 rounded-lg transition-colors text-primary">
             <RiDatabaseLine />
             <span className="ml-2">Backup</span>
@@ -193,7 +193,7 @@ const Header = () => {
           menuButton={
             <MenuButton className="flex items-center gap-x-2 hover:bg-secondary-100 p-2 rounded-lg transition-colors">
               <img
-                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Fead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo_emi.jpg?alt=media&token=c303d685-f255-4cd6-9e90-2a8b9b353e03"
+                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Flogoo_emi.jpg?alt=media&token=af571d0b-8e43-4e08-b0f2-f765c1f21b71"
                 className="w-12 h-12 object-cover rounded-full"
               />
               <span className="text-primary">{nombre} {apellido}</span>
@@ -212,7 +212,7 @@ const Header = () => {
               className="rounded-lg transition-colors text-gray-300 hover:bg-secondary-100 flex items-center gap-x-4 py-2 px-6 flex-1"
             >
               <img
-                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Fead9f229-bf68-46a1-bc0d-c585ef2995e4-logoo_emi.jpg?alt=media&token=c303d685-f255-4cd6-9e90-2a8b9b353e03"
+                src="https://firebasestorage.googleapis.com/v0/b/sisactivos.appspot.com/o/uploads%2Flogoo_emi.jpg?alt=media&token=af571d0b-8e43-4e08-b0f2-f765c1f21b71"
                 className="w-8 h-8 object-cover rounded-full"
               />
               <div className="flex flex-col text-sm">

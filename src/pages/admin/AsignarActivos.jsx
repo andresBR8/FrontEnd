@@ -50,6 +50,7 @@ export default function AsignarActivos({ onClose, onAssignmentComplete }) {
       const activosDisponibles = response.data.data.filter(modelo => 
         modelo.activoUnidades.some(u => !u.asignado && u.estadoCondicion !== 'BAJA')
       );
+      console.log(activosDisponibles);
       setActivos(activosDisponibles);
     } catch (error) {
       console.error('Error fetching activos:', error);
@@ -242,68 +243,77 @@ export default function AsignarActivos({ onClose, onAssignmentComplete }) {
               />
             </div>
             {filteredActivos.length > 0 ? (
-              <div className="max-h-60 overflow-auto">
-                {filteredActivos.map(modelo => {
-                  const availableUnits = modelo.activoUnidades.filter(u => !u.asignado && u.estadoCondicion !== 'BAJA');
-                  if (availableUnits.length === 0) return null;
-                  
-                  return (
-                    <div key={modelo.id} className="border-b pb-4 mb-4">
-                      <h4 className="font-semibold text-emi_azul mb-2">{modelo.nombre}</h4>
-                      <p className="text-sm text-gray-600 mb-2">{modelo.descripcion}</p>
-                      <Select
-  isMulti
-  options={availableUnits.map(unidad => ({
-    value: unidad.id,
-    label: `${unidad.codigo} - ${unidad.estadoActual}`
-  }))}
-  onChange={(selectedOptions) => handleSelectActivos(modelo.id, selectedOptions)}
-  value={selectedActivos[modelo.id] || []}
-  placeholder="Seleccionar unidades..."
-  className="basic-multi-select"
-  classNamePrefix="select"
-  styles={{
-    option: (provided, state) => ({
-      ...provided,
-      color: state.isSelected ? 'white' : '#054473', // emi_azul color
-      backgroundColor: state.isSelected ? '#054473' : state.isFocused ? '#e6f7ff' : null,
-    }),
-    control: (provided) => ({
-      ...provided,
-      borderColor: '#054473',
-      '&:hover': {
-        borderColor: '#054473',
-      },
-    }),
-    singleValue: (provided) => ({
-      ...provided,
-      color: '#054473', // emi_azul color
-    }),
-    multiValue: (provided) => ({
-      ...provided,
-      backgroundColor: '#e6f7ff',
-    }),
-    multiValueLabel: (provided) => ({
-      ...provided,
-      color: '#054473', // emi_azul color
-    }),
-    multiValueRemove: (provided) => ({
-      ...provided,
-      color: '#054473',
-      ':hover': {
-        backgroundColor: '#054473',
-        color: 'white',
-      },
-    }),
-  }}
-/>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-center text-gray-600">No hay activos disponibles para asignar.</p>
-            )}
+  <div className="max-h-60 overflow-auto">
+    {filteredActivos.map((modelo) => {
+      const availableUnits = modelo.activoUnidades.filter(
+        (unidad) => !unidad.asignado && unidad.estadoCondicion !== 'BAJA'
+      );
+      if (availableUnits.length === 0) return null;
+
+      return (
+        <div key={modelo.id} className="border-b pb-4 mb-4">
+          <h4 className="font-semibold text-emi_azul mb-2">{modelo.nombre}</h4>
+          <p className="text-sm text-gray-600 mb-2">{modelo.descripcion}</p>
+          <Select
+            isMulti
+            options={availableUnits.map((unidad) => ({
+              value: unidad.id,
+              label: `${unidad.codigo} - ${unidad.estadoActual}`,
+            }))}
+            onChange={(selectedOptions) =>
+              handleSelectActivos(modelo.id, selectedOptions)
+            }
+            value={selectedActivos[modelo.id] || []}
+            placeholder="Seleccionar unidades..."
+            className="basic-multi-select"
+            classNamePrefix="select"
+            styles={{
+              option: (provided, state) => ({
+                ...provided,
+                color: state.isSelected ? 'white' : '#054473', // emi_azul color
+                backgroundColor: state.isSelected
+                  ? '#054473'
+                  : state.isFocused
+                  ? '#e6f7ff'
+                  : null,
+              }),
+              control: (provided) => ({
+                ...provided,
+                borderColor: '#054473',
+                '&:hover': {
+                  borderColor: '#054473',
+                },
+              }),
+              singleValue: (provided) => ({
+                ...provided,
+                color: '#054473', // emi_azul color
+              }),
+              multiValue: (provided) => ({
+                ...provided,
+                backgroundColor: '#e6f7ff',
+              }),
+              multiValueLabel: (provided) => ({
+                ...provided,
+                color: '#054473', // emi_azul color
+              }),
+              multiValueRemove: (provided) => ({
+                ...provided,
+                color: '#054473',
+                ':hover': {
+                  backgroundColor: '#054473',
+                  color: 'white',
+                },
+              }),
+            }}
+          />
+        </div>
+      );
+    })}
+  </div>
+) : (
+  <p className="text-center text-gray-600">No hay activos disponibles para asignar.</p>
+)}
+
             {Object.keys(selectedActivos).length > 0 && (
               <button 
                 className="w-full py-2 px-4 bg-emi_amarillo text-emi_azul text-sm font-bold uppercase rounded-lg hover:bg-emi_azul hover:text-emi_amarillo transition-colors flex items-center justify-center"

@@ -213,7 +213,6 @@ const Dashboard = () => {
             <Tooltip />
             <Legend />
             <Line type="monotone" dataKey="lineaRecta" stroke="#4299E1" strokeWidth={2} />
-            <Line type="monotone" dataKey="saldosDecrecientes" stroke="#F6AD55" strokeWidth={2} />
           </LineChart>
         </ResponsiveContainer>
       ))}

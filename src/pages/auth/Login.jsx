@@ -107,15 +107,7 @@ const Login = () => {
           >
             ¿Olvidaste tu contraseña?
           </Link>
-          <span className="flex items-center gap-2">
-            ¿No tienes cuenta?{" "}
-            <Link
-              to="/registro"
-              className="text-primary hover:text-gray-100 transition-colors"
-            >
-              Registrate
-            </Link>
-          </span>
+          
         </div>
       </div>
     </div>

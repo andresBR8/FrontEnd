@@ -31,7 +31,6 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
       setEventos(data.historialCambios);
     } catch (error) {
       console.error('Error fetching activo data:', error);
-      toast.error('Error al cargar los datos del activo');
     } finally {
       setIsLoading(false);
     }
@@ -127,6 +126,7 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
                       size={96}
                     />
                   </div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <InfoItem label="ID" value={activoData.activoUnidad.id} />
@@ -145,12 +145,23 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
                       />
                     </div>
                   </div>
+                  
                   {activoData.activoUnidad.estadoCondicion === "BAJA" && (
                     <AlertBanner type="error" message="Este activo está dado de baja." />
                   )}
+                  
                   {calculateDepreciation(activoData.activoUnidad.activoModelo.fechaIngreso, activoData.activoUnidad.activoModelo.partida.vidaUtil) > 80 && (
                     <AlertBanner type="warning" message="Este activo está cerca de su vida útil." />
                   )}
+                  
+                  {/* Añadir la imagen de la orden de compra con scroll */}
+                  <div className="flex justify-center mb-6 overflow-auto max-h-96">
+                    <img 
+                      src={activoData.activoUnidad.activoModelo.ordenCompra} 
+                      alt="Orden de Compra"
+                      className="max-w-full h-auto max-h-96 rounded-lg shadow-md"
+                    />
+                  </div>
                 </div>
               )}
               {activeTab === 'history' && (
@@ -164,6 +175,7 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
           </div>
         )}
       </div>
+      
       <ToastContainer />
     </Modal>
   );
