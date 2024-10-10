@@ -11,12 +11,6 @@ const CurrentYearChart = ({ data }) => {
         borderColor: 'rgb(0, 48, 135)',
         backgroundColor: 'rgba(0, 48, 135, 0.5)',
       },
-      {
-        label: 'Saldos Decrecientes',
-        data: data.map(item => item.valorSaldosDecrecientes),
-        borderColor: 'rgb(255, 191, 0)',
-        backgroundColor: 'rgba(255, 191, 0, 0.5)',
-      }
     ]
   };
 

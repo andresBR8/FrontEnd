@@ -158,19 +158,18 @@ function DevolucionActivos() {
     doc.setTextColor(5, 68, 115); // emi_azul color
 
     // Add title
-    doc.text("ACTA DE DEVOLUCIÓN DE ACTIVOS", doc.internal.pageSize.width / 2, 50, { align: "center" });
+    doc.text("REPORTE DE DEVOLUCIONES DE ACTIVOS", doc.internal.pageSize.width / 2, 50, { align: "center" });
 
     // Reset font for normal text
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
 
-    // Add current date
+    // Add current date and time
     const currentDate = moment().format('DD [de] MMMM [de] YYYY');
+    const currentTime = moment().format('HH:mm:ss');
     doc.text(`Fecha: ${currentDate}`, 20, 60);
-
-    // Add content
-    doc.text("Por medio de la presente se deja constancia de la devolución de los siguientes activos:", 20, 70);
+    doc.text(`Hora: ${currentTime}`, 20, 65);
 
     // Create table for assets
     const tableColumn = ["Código", "Nombre", "Estado", "Costo Actual"];
@@ -190,17 +189,10 @@ function DevolucionActivos() {
       alternateRowStyles: { fillColor: [240, 240, 240] },
     });
 
-    // Add signature lines
-    const finalY = doc.lastAutoTable.finalY || 80;
-    doc.line(20, finalY + 40, 90, finalY + 40); // Entrega line
-    doc.line(120, finalY + 40, 190, finalY + 40); // Recibe line
-
-    doc.text("Entrega", 55, finalY + 45);
-    doc.text("Recibe", 155, finalY + 45);
 
     // Add footer
     doc.setFontSize(10);
-    doc.text("Este documento es un comprobante de la devolución de activos. Por favor, consérvelo para futuros registros.", 20, doc.internal.pageSize.height - 20);
+    doc.text("Este documento es un REPORTE de la devoluciónes  de activos. Por favor, consérvelo para futuros registros.", 20, doc.internal.pageSize.height - 20);
 
     // Save the PDF
     doc.save("acta_devolucion_activos.pdf");

@@ -12,13 +12,7 @@ const ComparisonChart = ({ data, years }) => {
         borderColor: `rgba(0, 48, 135, ${0.8 - 0.1 * index})`,
         borderWidth: 1,
       },
-      {
-        label: `Saldos Decrecientes ${year}`,
-        data: data[index]?.map(item => item.saldosDecrecientes) || [],
-        backgroundColor: `rgba(255, 191, 0, ${0.6 - 0.1 * index})`,
-        borderColor: `rgba(255, 191, 0, ${0.8 - 0.1 * index})`,
-        borderWidth: 1,
-      }
+     
     ])
   };
 
@@ -30,7 +24,7 @@ const ComparisonChart = ({ data, years }) => {
       },
       title: {
         display: true,
-        text: 'Comparación de Métodos de Depreciación',
+        text: 'Comparación de Depreciación MES',
         color: '#003087',
       },
     },

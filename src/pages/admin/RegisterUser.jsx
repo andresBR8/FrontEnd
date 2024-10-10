@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { RiMailLine, RiLockLine, RiEyeLine, RiEyeOffLine, RiUserLine, RiCloseLine } from "react-icons/ri";
+import { Toaster, toast } from 'sonner';  // Importa Sonner
 
 const RegisterUser = ({ user, onClose, onSave }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +39,7 @@ const RegisterUser = ({ user, onClose, onSave }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      toast.error('Las contraseñas no coinciden');  // Muestra error si las contraseñas no coinciden
       return;
     }
 
@@ -51,10 +52,13 @@ const RegisterUser = ({ user, onClose, onSave }) => {
     };
 
     onSave(userData);
+    toast.success(user ? 'Usuario actualizado exitosamente' : 'Usuario registrado exitosamente');  // Muestra mensaje de éxito
   };
 
   return (
     <div className="flex items-center justify-center p-4">
+      <Toaster position="top-right" richColors/>
+      
       <div className="relative bg-secondary-100 p-8 rounded-3xl shadow-2xl w-auto lg:w-[450px]">
         <button
           onClick={onClose}
@@ -77,6 +81,7 @@ const RegisterUser = ({ user, onClose, onSave }) => {
               className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
               placeholder="Nombre"
               required
+              disabled={!!user}  
             />
           </div>
           <div className="relative mb-4">
@@ -89,6 +94,7 @@ const RegisterUser = ({ user, onClose, onSave }) => {
               className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
               placeholder="Usuario"
               required
+              disabled={!!user}  
             />
           </div>
           <div className="relative mb-4">
@@ -101,6 +107,7 @@ const RegisterUser = ({ user, onClose, onSave }) => {
               className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
               placeholder="Correo electrónico"
               required
+              disabled={!!user} 
             />
           </div>
           <div className="relative mb-4">
@@ -151,15 +158,17 @@ const RegisterUser = ({ user, onClose, onSave }) => {
           </div>
           <div className="relative mb-4">
             <RiUserLine className="absolute top-1/2 -translate-y-1/2 left-2 text-primary" />
-            <input
-              type="text"
+            <select
               name="role"
               value={formData.role}
               onChange={handleChange}
               className="py-2 pl-8 pr-4 bg-secondary-900 w-full outline-none rounded-lg text-emi_azul"
-              placeholder="Rol"
               required
-            />
+            >
+              <option value="" disabled>Seleccionar rol</option>
+              <option value="Administrador">Administrador</option>
+              <option value="Encargado">Encargado</option>
+            </select>
           </div>
           <div>
             <button
@@ -171,8 +180,8 @@ const RegisterUser = ({ user, onClose, onSave }) => {
           </div>
         </form>
       </div>
+      
     </div>
-    
   );
 };
 

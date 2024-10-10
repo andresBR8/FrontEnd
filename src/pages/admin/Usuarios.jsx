@@ -134,7 +134,7 @@ const Usuarios = () => {
       </Modal>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-emi_azul">
-          <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
+          <thead className="text-xs text-emi_amarillo uppercase bg-emi_azul dark:bg-emi_azul dark:text-emi_amarillo">
             <tr>
               <th scope="col" className="py-2 px-2 lg:px-6">ID</th>
               <th scope="col" className="py-2 px-2 lg:px-6">Nombre</th>

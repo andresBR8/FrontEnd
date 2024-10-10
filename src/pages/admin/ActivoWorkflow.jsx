@@ -1,94 +1,79 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  addEdge,
+  MarkerType,
+  useNodesState,
+  useEdgesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { 
-  RiArrowUpCircleLine, 
-  RiArrowDownCircleLine, 
-  RiUserAddLine, 
-  RiExchangeLine, 
-  RiAlertLine,
-  RiInformationLine,
-  RiArrowLeftRightLine,
-} from 'react-icons/ri';
-
-function CustomNode({ data }) {
-  const getIcon = () => {
-    switch (data.tipoCambio) {
-      case 'CREACION':
-      case 'EN ALMACEN': return <RiArrowUpCircleLine className="text-green-500 text-2xl" />;
-      case 'ASIGNACION': return <RiUserAddLine className="text-blue-500 text-2xl" />;
-      case 'REASIGNACION': return <RiExchangeLine className="text-orange-500 text-2xl" />;
-      case 'CAMBIO_ESTADO': return <RiArrowDownCircleLine className="text-purple-500 text-2xl" />;
-      case 'BAJA': return <RiAlertLine className="text-red-500 text-2xl" />;
-      case 'DEVOLUCION': return <RiArrowLeftRightLine className="text-yellow-500 text-2xl" />;
-      default: return <RiInformationLine className="text-gray-500 text-2xl" />;
-    }
-  };
-
-  return (
-    <div className={`p-4 rounded-lg shadow-md ${data.tipoCambio === 'BAJA' ? 'bg-red-100' : 'bg-white'} w-64`}>
-      <div className="flex items-center justify-between mb-2">
-        {getIcon()}
-        <span className="font-bold text-sm">{data.tipoCambio}</span>
-      </div>
-      <p className="text-xs">{data.detalle}</p>
-      <p className="text-xs mt-2 text-gray-600">{new Date(data.fechaCambio).toLocaleString()}</p>
-      {data.asignacion && (
-        <p className="text-xs mt-1 text-gray-600">
-          Asignado a: {data.asignacion.personal.nombre}
-        </p>
-      )}
-      {data.reasignacion && (
-        <p className="text-xs mt-1 text-gray-600">
-          De: {data.reasignacion.personalAnterior.nombre}<br />
-          A: {data.reasignacion.personalNuevo.nombre}
-        </p>
-      )}
-      {data.estadoActivo && (
-        <p className="text-xs mt-1 text-gray-600">
-          Estado: {data.estadoActivo.estadoAnterior} → {data.estadoActivo.estadoNuevo}
-        </p>
-      )}
-    </div>
-  );
-}
+import CustomNode from './CustomNode';
 
 const nodeTypes = {
   customNode: CustomNode,
 };
 
 export default function ActivoWorkflow({ eventos }) {
-  const { nodes, edges } = useMemo(() => {
-    const nodes = eventos.map((evento, index) => ({
-      id: `${index}`,
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Identifica el nodo actual como el último en la secuencia de eventos
+  const currentNodeIndex = eventos.length - 1;
+
+  // Uso de useCallback para optimizar la generación de nodos
+  const generateNodes = useCallback(() => {
+    return eventos.map((evento, index) => ({
+      id: `node-${index}`,
       type: 'customNode',
-      position: { x: 0, y: index * 150 },
+      position: { x: index * 400, y: 0 }, // Alinear horizontalmente y aumentar el espaciado
       data: { ...evento },
+      isCurrent: index === currentNodeIndex,  // Marca el último nodo como actual
     }));
+  }, [eventos, currentNodeIndex]);
 
-    const edges = eventos.slice(1).map((_, index) => ({
-      id: `e${index}-${index + 1}`,
-      source: `${index}`,
-      target: `${index + 1}`,
-      type: 'smoothstep',
-      animated: true,
-      style: { stroke: '#2563eb', strokeWidth: 2 },
-    }));
-
-    return { nodes, edges };
+  // Uso de useCallback para optimizar la generación de edges
+  const generateEdges = useCallback(() => {
+    return eventos.slice(1).map((_, index) => {
+      const edgeId = `e${index + 1}-${index}`;
+      return {
+        id: edgeId,
+        source: `node-${index}`,  // Nodo de origen
+        sourceHandle: null,       // Usar handle predeterminado (lado derecho)
+        target: `node-${index + 1}`,  // Nodo destino
+        targetHandle: null,       // Usar handle predeterminado (lado izquierdo)
+        type: 'simplebezier', // Cambiar a 'simplebezier' para curvas suaves
+        animated: true,
+        style: { stroke: '#2563eb', strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#2563eb',
+        },
+        label: 'Proceso Siguiente',
+        labelStyle: { fill: '#2563eb', fontWeight: 700 },
+        labelBgPadding: [8, 4],
+        labelBgBorderRadius: 4,
+        labelBgStyle: { fill: '#ffffff', color: '#2563eb', fillOpacity: 0.7 },
+      };
+    });
   }, [eventos]);
 
+  useEffect(() => {
+    setNodes(generateNodes());
+    setEdges(generateEdges());
+  }, [eventos, generateNodes, generateEdges]);
+
   return (
-    <div style={{ width: '100%', height: '600px' }}>
+    <div style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         fitView
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={(params) => setEdges((eds) => addEdge(params, eds))}
         minZoom={0.1}
         maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
@@ -97,9 +82,10 @@ export default function ActivoWorkflow({ eventos }) {
         <Controls />
         <MiniMap 
           nodeColor={(node) => {
+            if (node.isCurrent) return '#F59E0B';  // Resalta el nodo actual en amarillo
             switch (node.data.tipoCambio) {
               case 'CREACION':
-              case 'EN ALMACEN': return '#10B981';
+              case 'REGISTRADO': return '#10B981';
               case 'ASIGNACION': return '#3B82F6';
               case 'REASIGNACION': return '#F97316';
               case 'CAMBIO_ESTADO': return '#8B5CF6';
@@ -108,6 +94,7 @@ export default function ActivoWorkflow({ eventos }) {
               default: return '#6B7280';
             }
           }}
+          maskColor="rgba(0,0,0,0.2)"
         />
       </ReactFlow>
     </div>

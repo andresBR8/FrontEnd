@@ -609,7 +609,7 @@ export default function Activos() {
         <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
           <div className="hidden md:block">
             <table className="w-full text-sm text-left text-emi_azul">
-              <thead className="text-xs text-emi_amarillo uppercase bg-white dark:bg-emi_azul dark:text-emi_amarillo">
+              <thead className="text-xs text-emi_amarillo uppercase bg-emi_azul dark:bg-emi_azul dark:text-emi_amarillo">
                 <tr>
                   <th
                     scope="col"
@@ -1025,61 +1025,80 @@ export default function Activos() {
         />
       </Modal>
       <Modal
-        isOpen={estadoModalAbierto}
-        onRequestClose={cerrarModalEstado}
-        style={modalStyles}
-        contentLabel="Modal de Cambio de Estado"
-      >
-        <div className="bg-white p-6 rounded-lg">
-          <h2 className="text-2xl font-bold mb-4">Cambiar Estado del Activo</h2>
-          <form onSubmit={handleCambioEstado}>
-            <div className="mb-4">
-              <label htmlFor="estadoNuevo" className="block text-sm font-medium text-gray-700">
-                Nuevo Estado
-              </label>
-              <select
-                id="estadoNuevo"
-                name="estadoNuevo"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                defaultValue={activoUnidadSeleccionado?.estadoActual}
-              >
-                <option value="Nuevo">Nuevo</option>
-                <option value="Bueno">Bueno</option>
-                <option value="Regular">Regular</option>
-                <option value="Malo">Malo</option>
-              </select>
-            </div>
-            <div className="mb-4">
-              <label htmlFor="motivoCambio" className="block text-sm font-medium text-gray-700">
-                Motivo del Cambio
-              </label>
-              <textarea
-                id="motivoCambio"
-                name="motivoCambio"
-                rows="3"
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Explique el motivo del cambio de estado"
-                required
-              ></textarea>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={cerrarModalEstado}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Guardar Cambios
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modal>
+  isOpen={estadoModalAbierto}
+  onRequestClose={cerrarModalEstado}
+  style={{
+    content: {
+      top: "50%",
+      left: "50%",
+      right: "auto",
+      bottom: "auto",
+      marginRight: "-50%",
+      transform: "translate(-50%, -50%)",
+      backgroundColor: "#ffffff",
+      borderRadius: "10px",
+      padding: "20px",
+      maxWidth: "600px",
+      width: "90%",
+      boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.1)",
+    },
+    overlay: {
+      backgroundColor: "rgba(0, 0, 0, 0.4)",
+    },
+  }}
+  contentLabel="Modal de Cambio de Estado"
+>
+  <div className="bg-white p-6 rounded-lg">
+    <h2 className="text-2xl font-bold text-emi_azul mb-4">Cambiar Estado del Activo</h2>
+    <form onSubmit={handleCambioEstado}>
+      <div className="mb-6">
+        <label htmlFor="estadoNuevo" className="block text-sm font-medium text-gray-700 mb-2">
+          Nuevo Estado
+        </label>
+        <select
+          id="estadoNuevo"
+          name="estadoNuevo"
+          className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          defaultValue={activoUnidadSeleccionado?.estadoActual}
+        >
+          <option value="Nuevo">Nuevo</option>
+          <option value="Bueno">Bueno</option>
+          <option value="Regular">Regular</option>
+          <option value="Malo">Malo</option>
+        </select>
+      </div>
+      <div className="mb-6">
+        <label htmlFor="motivoCambio" className="block text-sm font-medium text-gray-700 mb-2">
+          Motivo del Cambio
+        </label>
+        <textarea
+          id="motivoCambio"
+          name="motivoCambio"
+          rows="3"
+          className="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          placeholder="Explique el motivo del cambio de estado"
+          required
+        ></textarea>
+      </div>
+      <div className="flex justify-end space-x-3">
+        <button
+          type="button"
+          onClick={cerrarModalEstado}
+          className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium rounded-md shadow-sm"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-emi_azul text-emi_amarillo hover:bg-black font-medium rounded-md shadow-sm"
+        >
+          Guardar Cambios
+        </button>
+      </div>
+    </form>
+  </div>
+</Modal>
+
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4 text-emi_azul">Estados de Activos</h2>

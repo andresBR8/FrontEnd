@@ -4,8 +4,9 @@ import Modal from 'react-modal';
 import QRCode from 'qrcode.react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { RiAlertLine, RiLoader4Line, RiCloseLine, RiInformationLine, RiHistoryLine } from 'react-icons/ri';
+import { RiAlertLine, RiCloseLine, RiInformationLine, RiHistoryLine } from 'react-icons/ri';
 import ActivoWorkflow from './ActivoWorkflow';
+import { motion } from 'framer-motion';
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -23,16 +24,11 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
   const [activeTab, setActiveTab] = useState('info');
 
   const fetchData = useCallback(async () => {
-    console.log('unidadId', unidadId);
     setIsLoading(true);
     try {
       const { data } = await axios.get(`${apiUrl}/seguimiento/${unidadId}`);
       setActivoData(data);
-
-      const eventosOrdenados = data.historialCambios
-        .sort((a, b) => new Date(b.fechaCambio) - new Date(a.fechaCambio));
-
-      setEventos(eventosOrdenados);
+      setEventos(data.historialCambios);
     } catch (error) {
       console.error('Error fetching activo data:', error);
       toast.error('Error al cargar los datos del activo');
@@ -91,20 +87,32 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
     >
       <div className="flex flex-col h-full bg-gray-50">
         <div className="flex justify-between items-center p-4 bg-emi_azul text-white">
-          <h2 className="text-2xl font-bold">Seguimiento del Activo</h2>
+          <h2 className="text-2xl font-bold">
+            {activoData ? `Flujo de trabajo del Activo: ${activoData.activoUnidad.id}` : 'Cargando...'}
+          </h2>
           <button onClick={onClose} className="text-white hover:text-emi_amarillo transition-colors duration-200">
             <RiCloseLine size={24} />
           </button>
         </div>
         {isLoading ? (
           <div className="flex-grow flex justify-center items-center">
-            <RiLoader4Line className="animate-spin text-emi_azul text-4xl" />
+            <motion.div
+              animate={{
+                rotate: 360,
+              }}
+              transition={{
+                duration: 1,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              className="w-16 h-16 border-t-4 border-emi_azul rounded-full"
+            />
           </div>
         ) : activoData ? (
           <>
             <div className="flex border-b border-gray-200">
               <TabButton id="info" icon={<RiInformationLine />} label="Información" />
-              <TabButton id="history" icon={<RiHistoryLine />} label="Historial" />
+              <TabButton id="history" icon={<RiHistoryLine />} label="Workflow" />
             </div>
             <div className="flex-grow overflow-auto p-6">
               {activeTab === 'info' && (
@@ -146,10 +154,7 @@ export default function SeguimientoActivo({ unidadId, onClose }) {
                 </div>
               )}
               {activeTab === 'history' && (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-xl font-semibold text-emi_azul mb-4">Historial de Eventos</h3>
-                  <ActivoWorkflow eventos={eventos} />
-                </div>
+                <ActivoWorkflow eventos={eventos} />
               )}
             </div>
           </>

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import Swal from 'sweetalert2';
 import { RiFileUploadLine, RiFileExcelLine } from "react-icons/ri";
 import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 import { CSVLink } from "react-csv";
 import ReactPaginate from 'react-paginate';
+import { Toaster, toast } from 'sonner';  // Importa Sonner
 
 const Skeleton = ({ width = "100%", height = "20px", className = "" }) => (
   <div
@@ -30,7 +30,7 @@ export default function Personal() {
       setPersonal(response.data.data);
     } catch (error) {
       console.error('Error fetching data:', error);
-      Swal.fire('Error', 'No se pudo cargar la lista de personal', 'error');
+      toast.error('No se pudo cargar la lista de personal');  // Muestra error usando sonner
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +83,10 @@ export default function Personal() {
       setUploadResult(response.data.resumen);
       localStorage.setItem('uploadResult', JSON.stringify(response.data.resumen));
       await fetchPersonal();
-      Swal.fire('Éxito', 'Archivo CSV procesado correctamente', 'success');
+      toast.success('Archivo CSV procesado correctamente');  // Muestra éxito usando sonner
     } catch (error) {
       console.error('Error uploading file:', error);
-      Swal.fire('Error', 'No se pudo procesar el archivo CSV', 'error');
+      toast.error('No se pudo procesar el archivo CSV');  // Muestra error usando sonner
     } finally {
       setIsLoading(false);
       setUploadStatus('');
@@ -234,6 +234,9 @@ export default function Personal() {
 
   return (
     <div className="p-4 bg-gray-100 min-h-screen">
+      {/* Toaster para las notificaciones */}
+      <Toaster position="top-right" />
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-emi_azul mb-4">Gestión de Personal</h1>
         <div className="flex flex-wrap justify-between items-center gap-4">
