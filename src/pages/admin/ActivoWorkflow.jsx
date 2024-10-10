@@ -8,6 +8,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
 } from 'reactflow';
+import { motion, useAnimation } from 'framer-motion';
 import 'reactflow/dist/style.css';
 import CustomNode from './CustomNode';
 
@@ -15,35 +16,37 @@ const nodeTypes = {
   customNode: CustomNode,
 };
 
+const MotionReactFlow = motion(ReactFlow);
+
 export default function ActivoWorkflow({ eventos }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [animationComplete, setAnimationComplete] = useState(false);
+  const controls = useAnimation();
 
-  // Identifica el nodo actual como el último en la secuencia de eventos
   const currentNodeIndex = eventos.length - 1;
 
-  // Uso de useCallback para optimizar la generación de nodos
   const generateNodes = useCallback(() => {
     return eventos.map((evento, index) => ({
       id: `node-${index}`,
       type: 'customNode',
-      position: { x: index * 400, y: 0 }, // Alinear horizontalmente y aumentar el espaciado
+      position: { x: index * 400, y: 0 },
       data: { ...evento },
-      isCurrent: index === currentNodeIndex,  // Marca el último nodo como actual
+      isCurrent: index === currentNodeIndex,
+      animationDelay: index * 0.5, // Stagger the animation of nodes
     }));
   }, [eventos, currentNodeIndex]);
 
-  // Uso de useCallback para optimizar la generación de edges
   const generateEdges = useCallback(() => {
     return eventos.slice(1).map((_, index) => {
       const edgeId = `e${index + 1}-${index}`;
       return {
         id: edgeId,
-        source: `node-${index}`,  // Nodo de origen
-        sourceHandle: null,       // Usar handle predeterminado (lado derecho)
-        target: `node-${index + 1}`,  // Nodo destino
-        targetHandle: null,       // Usar handle predeterminado (lado izquierdo)
-        type: 'simplebezier', // Cambiar a 'simplebezier' para curvas suaves
+        source: `node-${index}`,
+        sourceHandle: null,
+        target: `node-${index + 1}`,
+        targetHandle: null,
+        type: 'simplebezier',
         animated: true,
         style: { stroke: '#2563eb', strokeWidth: 2 },
         markerEnd: {
@@ -60,13 +63,32 @@ export default function ActivoWorkflow({ eventos }) {
   }, [eventos]);
 
   useEffect(() => {
-    setNodes(generateNodes());
-    setEdges(generateEdges());
-  }, [eventos, generateNodes, generateEdges]);
+    const newNodes = generateNodes();
+    const newEdges = generateEdges();
+    setNodes(newNodes);
+    setEdges([]);
+
+    // Animate nodes and edges sequentially
+    const animateNodesAndEdges = async () => {
+      await controls.start({ opacity: 1, transition: { duration: 0.5 } });
+      
+      for (let i = 0; i < newNodes.length; i++) {
+        await controls.start(`node-${i}`);
+        if (i < newEdges.length) {
+          setEdges(prev => [...prev, newEdges[i]]);
+          await new Promise(resolve => setTimeout(resolve, 500)); // Wait for edge animation
+        }
+      }
+      
+      setAnimationComplete(true);
+    };
+
+    animateNodesAndEdges();
+  }, [eventos, generateNodes, generateEdges, controls]);
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
-      <ReactFlow
+      <MotionReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -77,12 +99,14 @@ export default function ActivoWorkflow({ eventos }) {
         minZoom={0.1}
         maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
+        animate={controls}
+        initial={{ opacity: 0 }}
       >
         <Background variant="dots" gap={12} size={1} />
         <Controls />
         <MiniMap 
           nodeColor={(node) => {
-            if (node.isCurrent) return '#F59E0B';  // Resalta el nodo actual en amarillo
+            if (node.isCurrent) return '#F59E0B';
             switch (node.data.tipoCambio) {
               case 'CREACION':
               case 'REGISTRADO': return '#10B981';
@@ -96,7 +120,7 @@ export default function ActivoWorkflow({ eventos }) {
           }}
           maskColor="rgba(0,0,0,0.2)"
         />
-      </ReactFlow>
+      </MotionReactFlow>
     </div>
   );
 }
